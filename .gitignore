@@ -1,0 +1,22 @@
+# Tsumiki command templates
+.claude/commands/direct-setup.md
+.claude/commands/direct-verify.md
+.claude/commands/kairo-design.md
+.claude/commands/kairo-implement.md
+.claude/commands/kairo-requirements.md
+.claude/commands/kairo-task-verify.md
+.claude/commands/kairo-tasks.md
+.claude/commands/rev-design.md
+.claude/commands/rev-requirements.md
+.claude/commands/rev-specs.md
+.claude/commands/rev-tasks.md
+.claude/commands/start-server.md
+.claude/commands/tdd-cycle-full.sh
+.claude/commands/tdd-green.md
+.claude/commands/tdd-load-context.md
+.claude/commands/tdd-red.md
+.claude/commands/tdd-refactor.md
+.claude/commands/tdd-requirements.md
+.claude/commands/tdd-testcases.md
+.claude/commands/tdd-todo.md
+.claude/commands/tdd-verify-complete.md
