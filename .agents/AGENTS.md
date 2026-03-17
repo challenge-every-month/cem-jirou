@@ -22,3 +22,15 @@
 - Use dependency injection for better testability
 - Implement proper error handling
 - Follow single responsibility principle
+
+## Development Workflow
+
+### Scripts
+- `pnpm dev`: Start local development server with Wrangler
+- `pnpm test`: Run unit tests with Vitest (Vite 8)
+- `pnpm deploy`: Deploy to Cloudflare Workers
+
+### Testing Policy
+- Use Vitest and @cloudflare/vitest-pool-workers for testing
+- All new features MUST include corresponding unit tests in `tests/`
+- Run `pnpm test` before pushing to ensure no regressions
