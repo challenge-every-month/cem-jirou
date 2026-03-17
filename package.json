@@ -1,5 +1,22 @@
 {
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"test": "vitest run"
+	},
 	"devDependencies": {
-		"@dyoshikawa/tsumiki": "^0.0.6"
+		"@cloudflare/vitest-pool-workers": "^0.13.2",
+		"@cloudflare/workers-types": "^4.20260317.1",
+		"@dyoshikawa/tsumiki": "^0.0.6",
+		"@types/node": "^25.5.0",
+		"miniflare": "^4.20260317.0",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.9.3",
+		"vite": "^8.0.0",
+		"vitest": "^4.1.0",
+		"wrangler": "^4.75.0"
+	},
+	"dependencies": {
+		"hono": "^4.12.8"
 	}
 }
