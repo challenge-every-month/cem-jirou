@@ -17,5 +17,4 @@
 
 ## AI & SDD
 - **Framework**: @dyoshikawa/tsumiki (Kairo SDD)
-- **Agent Policy**: IN-YANG (Antigravity) with `.agents/` unified config
-- **Rule Management**: Manual symlinking of `.agents/` to tool-specific dirs
+- **Rules & Config**: Unified `.agents/` directory
