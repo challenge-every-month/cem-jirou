@@ -34,3 +34,25 @@
 - Use Vitest and @cloudflare/vitest-pool-workers for testing
 - All new features MUST include corresponding unit tests in `tests/`
 - Run `pnpm test` before pushing to ensure no regressions
+
+## SDD (Spec-Driven Development) Workflow
+
+This project uses **@dyoshikawa/tsumiki (Kairo SDD)** for specification-driven development.
+
+### Kairo Command Flow
+1. `/kairo-requirements` — Define functional/non-functional requirements
+2. `/kairo-design` — Create technical design documents
+3. `/kairo-tasks` — Break down into atomic implementation tasks
+4. `/kairo-implement` — Implement per task with TDD
+5. `/kairo-task-verify` — Verify each task against requirements
+
+### Review Commands
+- `/rev-requirements` — Review requirements document
+- `/rev-design` — Review design document
+- `/rev-tasks` — Review task breakdown
+
+### Config
+- All agent commands: `.agents/commands/`
+- Agent skills: `.agents/skills/`
+- Agent definitions: `.agents/agents/`
+- Tech stack reference: `docs/tech-stack.md`

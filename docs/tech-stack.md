@@ -16,5 +16,6 @@
 - **Environment Management**: `.env` and `wrangler.toml`
 
 ## AI & SDD
-- **Framework**: @dyoshikawa/tsumiki (Kairo SDD)
-- **Rules & Config**: Unified `.agents/` directory
+- **Framework**: @dyoshikawa/tsumiki (v0.0.6, Kairo SDD)
+- **Rules & Config**: Unified `.agents/` directory (commands/, skills/, agents/)
+- **Agent Policy**: Spec-Driven Development via kairo commands (`kairo-requirements` → `kairo-design` → `kairo-tasks` → `kairo-implement` → `kairo-task-verify`)
