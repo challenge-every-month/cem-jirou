@@ -202,4 +202,119 @@ describe("commandRouter", () => {
 
     expect(res.status).toBe(200);
   });
+
+  it("returns 200 for /cem_publish", async () => {
+    const app = makeTestApp();
+    const body = makeFormBody({
+      command: "/cem_publish",
+      text: "",
+      user_id: "U123",
+      user_name: "testuser",
+      channel_id: "C123",
+    });
+
+    const res = await app.request(
+      "/slack/commands",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      makeEnv(),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 200 for /cem_progress", async () => {
+    const app = makeTestApp();
+    const body = makeFormBody({
+      command: "/cem_progress",
+      text: "",
+      user_id: "U123",
+      user_name: "testuser",
+      trigger_id: "T123",
+      channel_id: "C123",
+    });
+
+    const res = await app.request(
+      "/slack/commands",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      makeEnv(),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 200 for /cem_review", async () => {
+    const app = makeTestApp();
+    const body = makeFormBody({
+      command: "/cem_review",
+      text: "",
+      user_id: "U123",
+      user_name: "testuser",
+      trigger_id: "T123",
+      channel_id: "C123",
+    });
+
+    const res = await app.request(
+      "/slack/commands",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      makeEnv(),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 200 for /cem_edit (stub)", async () => {
+    const app = makeTestApp();
+    const body = makeFormBody({
+      command: "/cem_edit",
+      text: "",
+      user_id: "U123",
+      user_name: "testuser",
+    });
+
+    const res = await app.request(
+      "/slack/commands",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      makeEnv(),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 200 for /cem_delete (stub)", async () => {
+    const app = makeTestApp();
+    const body = makeFormBody({
+      command: "/cem_delete",
+      text: "",
+      user_id: "U123",
+      user_name: "testuser",
+    });
+
+    const res = await app.request(
+      "/slack/commands",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      makeEnv(),
+    );
+
+    expect(res.status).toBe(200);
+  });
 });
