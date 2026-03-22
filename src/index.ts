@@ -1,9 +1,12 @@
-import { Hono } from 'hono';
+import { Hono } from "hono";
+import type { Env } from "./types";
 
-const app = new Hono();
+export const app = new Hono<{ Bindings: Env }>();
 
-app.get('/', (c) => {
-  return c.json({ message: 'Hello, cem-jirou! ✨💖💅' });
+app.get("/", (c) => {
+  return c.json({ message: "Hello, cem-jirou!" });
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+};
