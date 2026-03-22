@@ -1,5 +1,9 @@
 import type { Context } from "hono";
 import type { Env, SlackEventPayload } from "../types";
+import { lazyProvision } from "../services/user";
+import { getProjectsWithChallenges } from "../services/project";
+import { resolveDisplayMonth, buildHomeView, buildErrorView } from "../views/home";
+import { publishHome } from "../utils/slack-api";
 
 type EventContext = Context<{ Bindings: Env }>;
 
@@ -12,7 +16,32 @@ export async function eventRouter(c: EventContext): Promise<Response> {
   }
 
   if (body.type === "event_callback" && body.event?.type === "app_home_opened") {
-    // stub: acknowledge immediately; App Home rendering added in a later task
+    const slackUserId = body.event?.user ?? "";
+
+    // Acknowledge immediately, process in waitUntil (if available)
+    const work = (async () => {
+      try {
+        const { user, preferences } = await lazyProvision(c.env.DB, slackUserId, slackUserId);
+        const { year, month } = resolveDisplayMonth(preferences);
+        const projects = await getProjectsWithChallenges(c.env.DB, user.id, year, month);
+        const view = buildHomeView(user, preferences, projects, year, month);
+        await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
+      } catch (e) {
+        try {
+          const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
+          await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
+        } catch {
+          // suppress fallback errors (e.g. missing env in tests)
+        }
+      }
+    })();
+
+    try {
+      c.executionCtx.waitUntil(work);
+    } catch {
+      // executionCtx not available in test environment — let work run in background
+    }
+
     return c.text("", 200);
   }
 
