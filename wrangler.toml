@@ -8,3 +8,19 @@ enabled = true
 
 [dev]
 port = 8787
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cem-jirou"
+database_id = "local"
+migrations_dir = "migrations"
+
+[triggers]
+crons = [
+  "0 0 1 * *",   # 月初チャンネル投稿 (JST 9:00)
+  "0 1 1 * *",   # 月初個人DM (JST 10:00)
+  "0 0 15 * *",  # 月中チャンネル投稿 (JST 9:00)
+  "0 0 25 * *",  # 月末チャンネル投稿 (JST 9:00)
+  "0 1 25 * *",  # 月末個人DM (JST 10:00)
+  "0 0 * * *",   # 期日接近チェック (JST 9:00)
+]
