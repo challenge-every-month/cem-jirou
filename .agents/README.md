@@ -1,0 +1,25 @@
+# .agents Directory Specification & AI Support Strategy
+
+このプロジェクトでは、AI エージェントに対する指示、ルール、スキルをベンダー中立な形式で管理するために `.agents/` ディレクトリを「唯一の真実の源（Single Source of Truth）」として採用しています。
+
+## 🏛️ 基本思想
+各 AI ツール（Claude Code, Cursor, Antigravity, Codex 等）はそれぞれ独自のディレクトリ構成やファイル名を要求しますが、それらをバラバラに管理すると「ルールの不一致」や「保守コストの増大」を招きます。
+そのため、すべての知見を `.agents/` に集約し、各ツールが必要とする場所へ **シンボリックリンク（Symlink）** を展開することで、一貫性と柔軟性を両立させています。
+
+## 📂 ディレクトリ構造と Symlink 戦略
+
+`.agents/` 直下の各エンティティは、以下のルールに基づいて各ツール専用ディレクトリへ展開されます。
+
+| .agents/ 内の元ネタ | 役割 | シンボリックリンク先と名称の変更 |
+| :--- | :--- | :--- |
+| **AGENTS.md** | プロジェクトの憲法 | `.claude/CLAUDE.md`, その他はそのまま |
+| **commands/** | 手順・コマンド | `.antigravity/workflows/`, `.claude/commands/` |
+| **skills/** | 拡張能力 (Skills) | 各ツールの `skills/` 直下にそのまま展開 |
+| **rules/** | ツール固有ルール | `.cursor/rules/` 等 |
+| **agents/** | サブエージェント定義 | 各ツールの `agents/` 直下 |
+| **mcp.json** | MCP サーバ定義 | そのまま展開 |
+
+## 🛠️ 運用ルール
+1. **編集は必ず `.agents/` 内で行う**: 各ツールのディレクトリ（`.claude/` 等）にあるファイルを直接編集してはいけません。
+2. **名称の揺らぎを Symlink で吸収する**: Antigravity は `workflows` を、Claude Code は `commands` を好むといった「方言」は、リンク作成時の名前変更で対応します。
+3. **新規ルールの追加**: 新しい共通ルールが必要になった場合は、まず `.agents/AGENTS.md` に追記し、必要に応じて各ツールへ反映させます。
