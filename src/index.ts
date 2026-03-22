@@ -5,6 +5,7 @@ import { commandRouter } from "./routes/commands";
 import { interactionRouter } from "./routes/interactions";
 import { eventRouter } from "./routes/events";
 import { usersRouter } from "./routes/users";
+import { handleScheduled } from "./handlers/scheduled";
 
 export const app = new Hono<{ Bindings: Env }>();
 
@@ -17,4 +18,7 @@ app.post("/slack/events", eventRouter);
 
 app.route("/users", usersRouter);
 
-export default { fetch: app.fetch };
+export default {
+  fetch: app.fetch,
+  scheduled: handleScheduled,
+};
