@@ -1,5 +1,7 @@
 import type { Context } from "hono";
 import type { Env, SlackInteractionPayload } from "../types";
+import { handleNewProjectStandardSubmit, handleNewProjectMarkdownSubmit } from "../handlers/commands/cem-new";
+import { handleSettingsSubmit } from "../handlers/commands/cem-settings";
 
 type InteractionContext = Context<{ Bindings: Env }>;
 
@@ -50,18 +52,10 @@ async function handleViewSubmission(
   c: InteractionContext,
   payload: SlackInteractionPayload,
 ): Promise<Response> {
-  const callbackId = payload.view?.callback_id ?? "";
-
-  switch (callbackId) {
-    case "modal_new_project_standard":
-    case "modal_new_project_markdown":
-    case "modal_edit_project":
-    case "modal_delete_project_confirm":
-    case "modal_progress_report":
-    case "modal_review":
-    case "modal_challenge_comment":
-    case "modal_settings":
-    default:
-      return c.text("", 200);
+  switch (payload.view?.callback_id) {
+    case "modal_new_project_standard": return handleNewProjectStandardSubmit(c, payload);
+    case "modal_new_project_markdown": return handleNewProjectMarkdownSubmit(c, payload);
+    case "modal_settings":             return handleSettingsSubmit(c, payload);
+    default:                           return c.text("", 200);
   }
 }

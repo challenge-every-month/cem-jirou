@@ -1,5 +1,9 @@
 import type { Context } from "hono";
 import type { Env } from "../types";
+import { handleCemNew } from "../handlers/commands/cem-new";
+import { handleCemEdit } from "../handlers/commands/cem-edit";
+import { handleCemDelete } from "../handlers/commands/cem-delete";
+import { handleCemSettings } from "../handlers/commands/cem-settings";
 
 type CommandContext = Context<{ Bindings: Env }>;
 
@@ -34,19 +38,7 @@ export async function commandRouter(c: CommandContext): Promise<Response> {
   }
 }
 
-// Stub handlers — all return 200 for now
-
-async function handleCemNew(c: CommandContext, _params: URLSearchParams): Promise<Response> {
-  return c.text("", 200);
-}
-
-async function handleCemEdit(c: CommandContext, _params: URLSearchParams): Promise<Response> {
-  return c.text("", 200);
-}
-
-async function handleCemDelete(c: CommandContext, _params: URLSearchParams): Promise<Response> {
-  return c.text("", 200);
-}
+// Stub handlers — will be implemented in future phases
 
 async function handleCemPublish(c: CommandContext, _params: URLSearchParams): Promise<Response> {
   return c.text("", 200);
@@ -57,9 +49,5 @@ async function handleCemProgress(c: CommandContext, _params: URLSearchParams): P
 }
 
 async function handleCemReview(c: CommandContext, _params: URLSearchParams): Promise<Response> {
-  return c.text("", 200);
-}
-
-async function handleCemSettings(c: CommandContext, _params: URLSearchParams): Promise<Response> {
   return c.text("", 200);
 }

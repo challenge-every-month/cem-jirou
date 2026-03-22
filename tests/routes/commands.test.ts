@@ -1,9 +1,96 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Hono } from "hono";
-import type { Env } from "../../src/types";
+import type { D1Database, D1PreparedStatement } from "@cloudflare/workers-types";
+import type { Env, UserRow, UserPreferencesRow } from "../../src/types";
 import { commandRouter } from "../../src/routes/commands";
 
-// Build a test app that bypasses signature middleware by injecting rawBody directly.
+// ---------------------------------------------------------------------------
+// Mock Slack API — prevents real HTTP calls
+// ---------------------------------------------------------------------------
+
+vi.mock("../../src/utils/slack-api", () => ({
+  openModal: vi.fn().mockResolvedValue(undefined),
+  publishHome: vi.fn().mockResolvedValue(undefined),
+  postMessage: vi.fn().mockResolvedValue(undefined),
+  postEphemeral: vi.fn().mockResolvedValue(undefined),
+  postDm: vi.fn().mockResolvedValue(undefined),
+  slackPost: vi.fn().mockResolvedValue({ ok: true }),
+}));
+
+// ---------------------------------------------------------------------------
+// D1 mock helpers
+// ---------------------------------------------------------------------------
+
+type D1RunResult = {
+  success: boolean;
+  meta: { last_row_id: number };
+  results: unknown[];
+};
+
+function makePreparedStatement(opts: {
+  firstResult?: unknown;
+  runResult?: D1RunResult;
+}): D1PreparedStatement {
+  const stmt = {
+    bind: vi.fn(),
+    first: vi.fn(),
+    run: vi.fn(),
+    all: vi.fn(),
+    raw: vi.fn(),
+  } as unknown as D1PreparedStatement & {
+    bind: ReturnType<typeof vi.fn>;
+    first: ReturnType<typeof vi.fn>;
+    run: ReturnType<typeof vi.fn>;
+    all: ReturnType<typeof vi.fn>;
+  };
+
+  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(stmt);
+  (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockResolvedValue(opts.firstResult ?? null);
+  (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockResolvedValue(
+    opts.runResult ?? { success: true, meta: { last_row_id: 1 }, results: [] },
+  );
+  (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockResolvedValue({ results: [] });
+
+  return stmt;
+}
+
+const USER_ROW: UserRow = {
+  id: 1,
+  slack_user_id: "U123",
+  user_name: "testuser",
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+};
+
+const PREFS_ROW: UserPreferencesRow = {
+  id: 1,
+  user_id: 1,
+  markdown_mode: 0,
+  personal_reminder: 0,
+  viewed_year: null,
+  viewed_month: null,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+};
+
+function makeDb(): D1Database {
+  return {
+    prepare: vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes("user_preferences")) {
+        return makePreparedStatement({ firstResult: PREFS_ROW });
+      }
+      return makePreparedStatement({ firstResult: USER_ROW });
+    }),
+    exec: vi.fn(),
+    batch: vi.fn(),
+    dump: vi.fn(),
+  } as unknown as D1Database;
+}
+
+// ---------------------------------------------------------------------------
+// Test app factory
+// ---------------------------------------------------------------------------
+
 function makeTestApp() {
   const app = new Hono<{ Bindings: Env }>();
 
@@ -18,9 +105,22 @@ function makeTestApp() {
   return app;
 }
 
+function makeEnv(): Env {
+  return {
+    DB: makeDb(),
+    SLACK_BOT_TOKEN: "xoxb-test",
+    SLACK_SIGNING_SECRET: "secret",
+    SLACK_POST_CHANNEL_ID: "C123",
+  };
+}
+
 function makeFormBody(params: Record<string, string>): string {
   return new URLSearchParams(params).toString();
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 describe("commandRouter", () => {
   it("returns ephemeral 'Unknown command' for an unrecognised command", async () => {
@@ -31,7 +131,7 @@ describe("commandRouter", () => {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
-    });
+    }, makeEnv());
 
     expect(res.status).toBe(200);
     const data = (await res.json()) as { response_type: string; text: string };
@@ -39,28 +139,40 @@ describe("commandRouter", () => {
     expect(data.text).toContain("Unknown command");
   });
 
-  it("returns 200 for /cem_new (stub)", async () => {
+  it("returns 200 for /cem_new", async () => {
     const app = makeTestApp();
-    const body = makeFormBody({ command: "/cem_new", text: "" });
+    const body = makeFormBody({
+      command: "/cem_new",
+      text: "",
+      user_id: "U123",
+      user_name: "testuser",
+      trigger_id: "T123",
+    });
 
     const res = await app.request("/slack/commands", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
-    });
+    }, makeEnv());
 
     expect(res.status).toBe(200);
   });
 
-  it("returns 200 for /cem_settings (stub)", async () => {
+  it("returns 200 for /cem_settings", async () => {
     const app = makeTestApp();
-    const body = makeFormBody({ command: "/cem_settings", text: "" });
+    const body = makeFormBody({
+      command: "/cem_settings",
+      text: "",
+      user_id: "U123",
+      user_name: "testuser",
+      trigger_id: "T123",
+    });
 
     const res = await app.request("/slack/commands", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
-    });
+    }, makeEnv());
 
     expect(res.status).toBe(200);
   });
