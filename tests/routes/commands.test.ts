@@ -3,7 +3,7 @@ import type {
   D1PreparedStatement,
 } from "@cloudflare/workers-types";
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { commandRouter } from "../../src/routes/commands";
 import type {
   Env,
@@ -24,6 +24,8 @@ vi.mock("../../src/utils/slack-api", () => ({
   postDm: vi.fn().mockResolvedValue(undefined),
   slackPost: vi.fn().mockResolvedValue({ ok: true }),
 }));
+
+import { postEphemeral } from "../../src/utils/slack-api";
 
 // ---------------------------------------------------------------------------
 // D1 mock helpers
@@ -137,6 +139,10 @@ function makeFormBody(params: Record<string, string>): string {
 // ---------------------------------------------------------------------------
 
 describe("commandRouter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("returns ephemeral 'Unknown command' for an unrecognised command", async () => {
     const app = makeTestApp();
     const body = makeFormBody({ command: "/unknown", text: "" });
@@ -274,13 +280,14 @@ describe("commandRouter", () => {
     expect(res.status).toBe(200);
   });
 
-  it("returns 200 for /cem_edit (stub)", async () => {
+  it("returns 200 and sends ephemeral for /cem_edit", async () => {
     const app = makeTestApp();
     const body = makeFormBody({
       command: "/cem_edit",
       text: "",
       user_id: "U123",
       user_name: "testuser",
+      channel_id: "C123",
     });
 
     const res = await app.request(
@@ -294,15 +301,20 @@ describe("commandRouter", () => {
     );
 
     expect(res.status).toBe(200);
+    expect(postEphemeral).toHaveBeenCalledOnce();
+    const [, , , text] = (postEphemeral as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, string, string, string];
+    expect(text).toContain("App Home");
   });
 
-  it("returns 200 for /cem_delete (stub)", async () => {
+  it("returns 200 and sends ephemeral for /cem_delete", async () => {
     const app = makeTestApp();
     const body = makeFormBody({
       command: "/cem_delete",
       text: "",
       user_id: "U123",
       user_name: "testuser",
+      channel_id: "C123",
     });
 
     const res = await app.request(
@@ -316,5 +328,9 @@ describe("commandRouter", () => {
     );
 
     expect(res.status).toBe(200);
+    expect(postEphemeral).toHaveBeenCalledOnce();
+    const [, , , text] = (postEphemeral as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, string, string, string];
+    expect(text).toContain("App Home");
   });
 });

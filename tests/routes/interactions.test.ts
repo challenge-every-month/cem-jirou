@@ -380,7 +380,7 @@ describe("interactionRouter — block_actions", () => {
     expect(view.callback_id).toBe("modal_challenge_comment");
   });
 
-  it("returns 200 for home_open_new_project (stub)", async () => {
+  it("returns 200 and opens new project modal for home_open_new_project", async () => {
     const db = makeStandardDb();
     const app = makeTestApp();
     const payload = makeBlockActionPayload("home_open_new_project");
@@ -396,9 +396,13 @@ describe("interactionRouter — block_actions", () => {
     );
 
     expect(res.status).toBe(200);
+    expect(openModal).toHaveBeenCalledOnce();
+    const [, , view] = (openModal as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, string, { callback_id: string }];
+    expect(view.callback_id).toBe("modal_new_project_standard");
   });
 
-  it("returns 200 for home_open_add_challenge (stub)", async () => {
+  it("returns 200 and opens add challenge modal for home_open_add_challenge", async () => {
     const db = makeStandardDb();
     const app = makeTestApp();
     const payload = makeBlockActionPayload("home_open_add_challenge", "10");
@@ -414,6 +418,10 @@ describe("interactionRouter — block_actions", () => {
     );
 
     expect(res.status).toBe(200);
+    expect(openModal).toHaveBeenCalledOnce();
+    const [, , view] = (openModal as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, string, { callback_id: string }];
+    expect(view.callback_id).toBe("modal_add_challenge");
   });
 
   it("returns 200 and opens settings modal for home_open_settings", async () => {
@@ -737,6 +745,31 @@ describe("interactionRouter — view_submission", () => {
         input_review_comment_100: {
           type: "plain_text_input",
           value: "毎日続けられた",
+        },
+      },
+    });
+
+    const res = await app.request(
+      "/slack/interactions",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: encodePayload(payload),
+      },
+      makeEnv(db),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 200 for modal_add_challenge", async () => {
+    const db = makeStandardDb();
+    const app = makeTestApp();
+    const payload = makeViewSubmissionPayload("modal_add_challenge", {
+      input_challenge_name: {
+        input_challenge_name: {
+          type: "plain_text_input",
+          value: "新しいチャレンジ",
         },
       },
     });

@@ -8,6 +8,9 @@ import {
   handleHomeOpenEditProject,
 } from "../handlers/commands/cem-edit";
 import {
+  handleAddChallengeSubmit,
+  handleHomeOpenAddChallenge,
+  handleHomeOpenNewProject,
   handleNewProjectMarkdownSubmit,
   handleNewProjectStandardSubmit,
 } from "../handlers/commands/cem-new";
@@ -175,14 +178,10 @@ async function handleBlockActions(
     }
 
     case "home_open_new_project":
-    case "home_open_add_challenge": {
-      // Open the cem_new modal; reuse the same cem_new command handler logic by
-      // constructing the params and delegating — for now open a standard new project modal
-      // This is a stub that can be wired to the full handler; for block_action we just
-      // acknowledge. The full modal open is handled by /cem_new command.
-      // For home_open_add_challenge we pass the project_id as context.
-      return c.text("", 200);
-    }
+      return handleHomeOpenNewProject(c, payload);
+
+    case "home_open_add_challenge":
+      return handleHomeOpenAddChallenge(c, payload);
 
     case "home_open_settings": {
       const { preferences } = await lazyProvision(
@@ -274,6 +273,8 @@ async function handleViewSubmission(
       return handleProgressSubmit(c, payload);
     case "modal_review":
       return handleReviewSubmit(c, payload);
+    case "modal_add_challenge":
+      return handleAddChallengeSubmit(c, payload);
     default:
       return c.text("", 200);
   }
