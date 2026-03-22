@@ -36,6 +36,7 @@ scheduled handler         ← Cron Triggers（HTTP 非経由）
 | `/cem_publish` | 表明処理を実行 |
 | `/cem_progress` | 進捗報告モーダルを開く |
 | `/cem_review` | 振り返りモーダルを開く |
+| `/cem_settings` | preferences 設定モーダルを開く |
 
 - REQ-WH-012: スラッシュコマンドへのレスポンスは **3 秒以内** に `200 OK` を返さなければならない
 - REQ-WH-013: モーダルを開く処理は `views.open` API を同期的に呼び出さなければならない（3 秒以内に完了させる必要があるため）

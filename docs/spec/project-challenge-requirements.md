@@ -137,7 +137,10 @@ challenges
 | `@2026-03-15` | 完全指定 | そのまま |
 
 - REQ-PRJ-406: マークダウンモードのテキストは上記パース仕様に従い、Project / Challenge / due_on に分解されなければならない
-- REQ-PRJ-407: `PATCH /users/:slack_user_id/preferences` リクエストで `markdown_mode` を切り替えられなければならない
+- REQ-PRJ-407: `PATCH /users/:slack_user_id/preferences` リクエストで `markdown_mode` および `personal_reminder` を切り替えられなければならない
+- REQ-PRJ-408: システムは App Home の [⚙️ 設定] ボタン押下時に、preferences 設定モーダルを開かなければならない
+- REQ-PRJ-409: システムは `/cem_settings` コマンド実行時に、preferences 設定モーダルを開かなければならない
+- REQ-PRJ-410: preferences 設定モーダルは `markdown_mode` と `personal_reminder` の両方を切り替えられるフォームを持たなければならない
 
 ## 非機能要件
 
