@@ -1,14 +1,14 @@
 import type { Context } from "hono";
 import { lazyProvision, updatePreferences } from "../../services/user";
 import type {
-  Env,
+  HonoEnv,
   SlackInteractionPayload,
   UserPreferencesRow,
 } from "../../types";
 import { openModal } from "../../utils/slack-api";
 
 export async function handleCemSettings(
-  c: Context<{ Bindings: Env }>,
+  c: Context<HonoEnv>,
   params: URLSearchParams,
 ): Promise<Response> {
   const slackUserId = params.get("user_id") ?? "";
@@ -23,7 +23,7 @@ export async function handleCemSettings(
 
 // Handle view_submission for modal_settings
 export async function handleSettingsSubmit(
-  c: Context<{ Bindings: Env }>,
+  c: Context<HonoEnv>,
   payload: SlackInteractionPayload,
 ): Promise<Response> {
   const slackUserId = payload.user.id;
@@ -45,7 +45,7 @@ export async function handleSettingsSubmit(
   return c.text("", 200);
 }
 
-function buildSettingsModal(preferences: UserPreferencesRow) {
+export function buildSettingsModal(preferences: UserPreferencesRow) {
   return {
     type: "modal",
     callback_id: "modal_settings",
