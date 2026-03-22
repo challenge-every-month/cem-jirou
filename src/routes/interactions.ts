@@ -2,6 +2,11 @@ import type { Context } from "hono";
 import type { Env, SlackInteractionPayload } from "../types";
 import { handleNewProjectStandardSubmit, handleNewProjectMarkdownSubmit } from "../handlers/commands/cem-new";
 import { handleSettingsSubmit } from "../handlers/commands/cem-settings";
+import { handleHomeOpenEditProject, handleEditProjectSubmit } from "../handlers/commands/cem-edit";
+import { handleHomeConfirmDeleteProject, handleDeleteProjectConfirmSubmit } from "../handlers/commands/cem-delete";
+import { handleHomePublish } from "../handlers/commands/cem-publish";
+import { handleProgressSubmit } from "../handlers/commands/cem-progress";
+import { handleReviewSubmit, buildReviewModal } from "../handlers/commands/cem-review";
 import { lazyProvision, updatePreferences } from "../services/user";
 import { getProjectsWithChallenges } from "../services/project";
 import { updateChallenge } from "../services/challenge";
@@ -156,9 +161,42 @@ async function handleBlockActions(
     }
 
     case "home_open_edit_project":
+      return handleHomeOpenEditProject(c, payload);
+
     case "home_confirm_delete_project":
+      return handleHomeConfirmDeleteProject(c, payload);
+
     case "home_publish":
-    case "home_review_complete":
+      return handleHomePublish(c, payload);
+
+    case "home_review_complete": {
+      const action2 = payload.actions?.[0];
+      const projectId = parseInt(action2?.value ?? "0", 10);
+
+      safeWaitUntil(c, (async () => {
+        try {
+          const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
+
+          const now = new Date();
+          const year = now.getUTCFullYear();
+          const month = now.getUTCMonth() + 1;
+          const projects = await getProjectsWithChallenges(c.env.DB, user.id, year, month);
+          const project = projects.find((p) => p.id === projectId);
+
+          if (!project || project.status !== "published") {
+            return;
+          }
+
+          const modal = buildReviewModal(project.id, project.challenges);
+          await openModal(c.env.SLACK_BOT_TOKEN, payload.trigger_id, modal);
+        } catch (e) {
+          const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
+          await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(() => {});
+        }
+      })());
+      return c.text("", 200);
+    }
+
     default:
       return c.text("", 200);
   }
@@ -171,11 +209,15 @@ async function handleViewSubmission(
   payload: SlackInteractionPayload,
 ): Promise<Response> {
   switch (payload.view?.callback_id) {
-    case "modal_new_project_standard": return handleNewProjectStandardSubmit(c, payload);
-    case "modal_new_project_markdown": return handleNewProjectMarkdownSubmit(c, payload);
-    case "modal_settings":             return handleSettingsSubmit(c, payload);
-    case "modal_challenge_comment":    return handleChallengeCommentSubmit(c, payload);
-    default:                           return c.text("", 200);
+    case "modal_new_project_standard":      return handleNewProjectStandardSubmit(c, payload);
+    case "modal_new_project_markdown":      return handleNewProjectMarkdownSubmit(c, payload);
+    case "modal_settings":                  return handleSettingsSubmit(c, payload);
+    case "modal_challenge_comment":         return handleChallengeCommentSubmit(c, payload);
+    case "modal_edit_project":              return handleEditProjectSubmit(c, payload);
+    case "modal_delete_project_confirm":    return handleDeleteProjectConfirmSubmit(c, payload);
+    case "modal_progress_report":           return handleProgressSubmit(c, payload);
+    case "modal_review":                    return handleReviewSubmit(c, payload);
+    default:                                return c.text("", 200);
   }
 }
 
