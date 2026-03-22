@@ -4,6 +4,7 @@ import { slackVerifyMiddleware } from "./middleware/slack-verify";
 import { commandRouter } from "./routes/commands";
 import { interactionRouter } from "./routes/interactions";
 import { eventRouter } from "./routes/events";
+import { usersRouter } from "./routes/users";
 
 export const app = new Hono<{ Bindings: Env }>();
 
@@ -13,5 +14,7 @@ app.use("/slack/*", slackVerifyMiddleware);
 app.post("/slack/commands", commandRouter);
 app.post("/slack/interactions", interactionRouter);
 app.post("/slack/events", eventRouter);
+
+app.route("/users", usersRouter);
 
 export default { fetch: app.fetch };
