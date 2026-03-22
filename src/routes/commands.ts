@@ -3,6 +3,9 @@ import type { Env } from "../types";
 import { handleCemNew } from "../handlers/commands/cem-new";
 import { handleCemEdit } from "../handlers/commands/cem-edit";
 import { handleCemDelete } from "../handlers/commands/cem-delete";
+import { handleCemPublish } from "../handlers/commands/cem-publish";
+import { handleCemProgress } from "../handlers/commands/cem-progress";
+import { handleCemReview } from "../handlers/commands/cem-review";
 import { handleCemSettings } from "../handlers/commands/cem-settings";
 
 type CommandContext = Context<{ Bindings: Env }>;
@@ -36,18 +39,4 @@ export async function commandRouter(c: CommandContext): Promise<Response> {
         200,
       );
   }
-}
-
-// Stub handlers — will be implemented in future phases
-
-async function handleCemPublish(c: CommandContext, _params: URLSearchParams): Promise<Response> {
-  return c.text("", 200);
-}
-
-async function handleCemProgress(c: CommandContext, _params: URLSearchParams): Promise<Response> {
-  return c.text("", 200);
-}
-
-async function handleCemReview(c: CommandContext, _params: URLSearchParams): Promise<Response> {
-  return c.text("", 200);
 }

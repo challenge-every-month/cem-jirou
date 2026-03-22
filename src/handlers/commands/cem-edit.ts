@@ -1,6 +1,115 @@
 import type { Context } from "hono";
-import type { Env } from "../../types";
+import type { Env, SlackInteractionPayload } from "../../types";
+import { lazyProvision } from "../../services/user";
+import {
+  getProjectsWithChallenges,
+  updateProject,
+} from "../../services/project";
+import { assertProjectOwner } from "../../services/authorization";
+import { openModal, publishHome } from "../../utils/slack-api";
+import { resolveDisplayMonth, buildHomeView, buildErrorView } from "../../views/home";
 
-export async function handleCemEdit(c: Context<{ Bindings: Env }>, _params: URLSearchParams): Promise<Response> {
-  return c.text("", 200); // TODO: implement multi-step edit modal
+// ─── Helper: safeWaitUntil ───────────────────────────────────────────────────
+
+function safeWaitUntil(c: Context<{ Bindings: Env }>, promise: Promise<void>): void {
+  try {
+    c.executionCtx.waitUntil(promise);
+  } catch {
+    // executionCtx not available in test environment
+  }
+}
+
+// ─── Helper: refresh App Home ────────────────────────────────────────────────
+
+async function refreshHome(
+  c: Context<{ Bindings: Env }>,
+  slackUserId: string,
+  userName: string,
+): Promise<void> {
+  const { user, preferences } = await lazyProvision(c.env.DB, slackUserId, userName);
+  const { year, month } = resolveDisplayMonth(preferences);
+  const projects = await getProjectsWithChallenges(c.env.DB, user.id, year, month);
+  const view = buildHomeView(user, preferences, projects, year, month);
+  await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
+}
+
+// ─── /cem_edit command handler ───────────────────────────────────────────────
+
+export async function handleCemEdit(
+  c: Context<{ Bindings: Env }>,
+  _params: URLSearchParams,
+): Promise<Response> {
+  return c.text("", 200); // TODO: multi-step edit via slash command
+}
+
+// ─── home_open_edit_project block_action handler ─────────────────────────────
+
+export async function handleHomeOpenEditProject(
+  c: Context<{ Bindings: Env }>,
+  payload: SlackInteractionPayload,
+): Promise<Response> {
+  const action = payload.actions?.[0];
+  const projectId = parseInt(action?.value ?? "0", 10);
+  const slackUserId = payload.user.id;
+  const userName = payload.user.username ?? payload.user.name;
+
+  const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
+  const project = await assertProjectOwner(c.env.DB, projectId, user.id);
+
+  const modal = {
+    type: "modal",
+    callback_id: "modal_edit_project",
+    private_metadata: String(projectId),
+    title: { type: "plain_text", text: "プロジェクトを編集" },
+    submit: { type: "plain_text", text: "保存" },
+    close: { type: "plain_text", text: "キャンセル" },
+    blocks: [
+      {
+        type: "input",
+        block_id: "input_project_title",
+        label: { type: "plain_text", text: "プロジェクトタイトル" },
+        element: {
+          type: "plain_text_input",
+          action_id: "input_project_title",
+          initial_value: project.title,
+          placeholder: { type: "plain_text", text: "例: 英語学習" },
+        },
+      },
+    ],
+  };
+
+  await openModal(c.env.SLACK_BOT_TOKEN, payload.trigger_id, modal);
+  return c.text("", 200);
+}
+
+// ─── modal_edit_project view_submission handler ──────────────────────────────
+
+export async function handleEditProjectSubmit(
+  c: Context<{ Bindings: Env }>,
+  payload: SlackInteractionPayload,
+): Promise<Response> {
+  const slackUserId = payload.user.id;
+  const userName = payload.user.username ?? payload.user.name;
+  const projectId = parseInt(payload.view?.private_metadata ?? "0", 10);
+  const values = payload.view?.state.values ?? {};
+  const newTitle =
+    values["input_project_title"]?.["input_project_title"]?.value?.trim() ?? "";
+
+  safeWaitUntil(c, (async () => {
+    try {
+      const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
+      await assertProjectOwner(c.env.DB, projectId, user.id);
+
+      if (newTitle) {
+        await updateProject(c.env.DB, projectId, { title: newTitle });
+      }
+
+      await refreshHome(c, slackUserId, userName);
+    } catch (e) {
+      const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
+      await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(() => {});
+    }
+  })());
+
+  return c.text("", 200);
 }
