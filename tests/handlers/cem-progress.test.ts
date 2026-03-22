@@ -11,6 +11,7 @@ import {
 import type {
   ChallengeRow,
   Env,
+  HonoEnv,
   ProjectRow,
   SlackInteractionPayload,
   UserPreferencesRow,
@@ -149,7 +150,7 @@ const CHALLENGE_ROW: ChallengeRow = {
 // ─── Test app helpers ────────────────────────────────────────────────────────
 
 function makeTestApp(db: D1Database, token = "xoxb-test") {
-  const app = new Hono<{ Bindings: Env }>();
+  const app = new Hono<HonoEnv>();
 
   app.post("/test/cem-progress", async (c) => {
     const rawBody = await c.req.text();

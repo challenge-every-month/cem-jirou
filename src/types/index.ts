@@ -9,6 +9,14 @@ export interface Env {
   SLACK_POST_CHANNEL_ID: string;
 }
 
+// Hono context Variables (set by middleware)
+export interface Variables {
+  rawBody: string;
+}
+
+// Convenience type for Hono context generics
+export type HonoEnv = { Bindings: Env; Variables: Variables };
+
 // =============================================================================
 // Database Row Types（DDL に直接対応）
 // =============================================================================

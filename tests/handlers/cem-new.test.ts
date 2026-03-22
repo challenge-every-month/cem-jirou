@@ -12,6 +12,7 @@ import {
 import type {
   ChallengeRow,
   Env,
+  HonoEnv,
   ProjectRow,
   SlackInteractionPayload,
   UserPreferencesRow,
@@ -176,7 +177,7 @@ const CHALLENGE_ROW: ChallengeRow = {
 // ---------------------------------------------------------------------------
 
 function _makeContext(db: D1Database, token = "xoxb-test") {
-  const app = new Hono<{ Bindings: Env }>();
+  const app = new Hono<HonoEnv>();
   const _capturedContext: ReturnType<typeof app.request> | null = null;
 
   // We need to capture the hono context — use a minimal approach
@@ -192,7 +193,7 @@ function _makeContext(db: D1Database, token = "xoxb-test") {
 
 // We use a different approach: call handlers via a test app
 function makeTestApp(db: D1Database, token = "xoxb-test") {
-  const app = new Hono<{ Bindings: Env }>();
+  const app = new Hono<HonoEnv>();
 
   app.post("/test/cem-new", async (c) => {
     const rawBody = await c.req.text();

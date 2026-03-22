@@ -5,7 +5,12 @@ import type {
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import { usersRouter } from "../../src/routes/users";
-import type { Env, UserPreferencesRow, UserRow } from "../../src/types";
+import type {
+  Env,
+  HonoEnv,
+  UserPreferencesRow,
+  UserRow,
+} from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // D1 mock helpers
@@ -77,7 +82,7 @@ const PREFS_ROW: UserPreferencesRow = {
 // ---------------------------------------------------------------------------
 
 function makeTestApp(_db: D1Database) {
-  const app = new Hono<{ Bindings: Env }>();
+  const app = new Hono<HonoEnv>();
   app.route("/users", usersRouter);
   return app;
 }

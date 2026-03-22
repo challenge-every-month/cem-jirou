@@ -5,7 +5,7 @@ import {
   timingSafeEqual,
   verifySlackSignature,
 } from "../../src/middleware/slack-verify";
-import type { Env } from "../../src/types";
+import type { Env, HonoEnv } from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // Helper: generate a real HMAC-SHA256 signature the same way the middleware does
@@ -39,7 +39,7 @@ async function makeSignature(
 // Helper: build a test Hono app with the middleware applied
 // ---------------------------------------------------------------------------
 function makeTestApp(_env: Partial<Env> = {}) {
-  const app = new Hono<{ Bindings: Env }>();
+  const app = new Hono<HonoEnv>();
   app.use("/slack/*", slackVerifyMiddleware);
   app.post("/slack/test", (c) => c.text("ok", 200));
   return app;

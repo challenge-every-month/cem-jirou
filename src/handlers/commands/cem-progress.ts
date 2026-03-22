@@ -2,54 +2,19 @@ import type { Context } from "hono";
 import { updateChallenge } from "../../services/challenge";
 import { getProjectsWithChallenges } from "../../services/project";
 import { lazyProvision } from "../../services/user";
-import type { Env, SlackInteractionPayload } from "../../types";
+import type { HonoEnv, SlackInteractionPayload } from "../../types";
+import {
+  getCurrentYearMonth,
+  refreshHome,
+  safeWaitUntil,
+} from "../../utils/handler-helpers";
 import {
   openModal,
   postEphemeral,
   postMessage,
   publishHome,
 } from "../../utils/slack-api";
-import {
-  buildErrorView,
-  buildHomeView,
-  resolveDisplayMonth,
-} from "../../views/home";
-
-// ─── Helper: safeWaitUntil ───────────────────────────────────────────────────
-
-function safeWaitUntil(
-  c: Context<{ Bindings: Env }>,
-  promise: Promise<void>,
-): void {
-  try {
-    c.executionCtx.waitUntil(promise);
-  } catch {
-    // executionCtx not available in test environment
-  }
-}
-
-// ─── Helper: refresh App Home ────────────────────────────────────────────────
-
-async function refreshHome(
-  c: Context<{ Bindings: Env }>,
-  slackUserId: string,
-  userName: string,
-): Promise<void> {
-  const { user, preferences } = await lazyProvision(
-    c.env.DB,
-    slackUserId,
-    userName,
-  );
-  const { year, month } = resolveDisplayMonth(preferences);
-  const projects = await getProjectsWithChallenges(
-    c.env.DB,
-    user.id,
-    year,
-    month,
-  );
-  const view = buildHomeView(user, preferences, projects, year, month);
-  await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
-}
+import { buildErrorView } from "../../views/home";
 
 // ─── Modal builder ───────────────────────────────────────────────────────────
 
@@ -104,7 +69,7 @@ function buildProgressModal(
 // ─── /cem_progress command handler ──────────────────────────────────────────
 
 export async function handleCemProgress(
-  c: Context<{ Bindings: Env }>,
+  c: Context<HonoEnv>,
   params: URLSearchParams,
 ): Promise<Response> {
   const slackUserId = params.get("user_id") ?? "";
@@ -114,9 +79,7 @@ export async function handleCemProgress(
 
   const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
 
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth() + 1;
+  const { year, month } = getCurrentYearMonth();
 
   const projects = await getProjectsWithChallenges(
     c.env.DB,
@@ -148,7 +111,7 @@ export async function handleCemProgress(
 // ─── modal_progress_report view_submission handler ──────────────────────────
 
 export async function handleProgressSubmit(
-  c: Context<{ Bindings: Env }>,
+  c: Context<HonoEnv>,
   payload: SlackInteractionPayload,
 ): Promise<Response> {
   const slackUserId = payload.user.id;

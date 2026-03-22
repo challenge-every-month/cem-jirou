@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import type { Env } from "../types";
+import type { HonoEnv } from "../types";
 
 /**
  * Byte-by-byte XOR comparison with constant-time semantics.
@@ -61,9 +61,10 @@ export async function verifySlackSignature(opts: {
  *   c. Read rawBody and store in context
  *   d. Verify HMAC-SHA256 signature
  */
-export const slackVerifyMiddleware: MiddlewareHandler<{
-  Bindings: Env;
-}> = async (c, next) => {
+export const slackVerifyMiddleware: MiddlewareHandler<HonoEnv> = async (
+  c,
+  next,
+) => {
   // a. Suppress Slack retries
   if (c.req.header("X-Slack-Retry-Num") !== undefined) {
     return c.text("", 200);
@@ -81,7 +82,7 @@ export const slackVerifyMiddleware: MiddlewareHandler<{
 
   // c. Read and store rawBody
   const rawBody = await c.req.text();
-  c.set("rawBody" as never, rawBody as never);
+  c.set("rawBody", rawBody);
 
   // d. Verify signature
   const signature = c.req.header("X-Slack-Signature") ?? "";

@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { getProjectsWithChallenges } from "../services/project";
 import { lazyProvision } from "../services/user";
-import type { Env, SlackEventPayload } from "../types";
+import type { HonoEnv, SlackEventPayload } from "../types";
 import { publishHome } from "../utils/slack-api";
 import {
   buildErrorView,
@@ -9,7 +9,7 @@ import {
   resolveDisplayMonth,
 } from "../views/home";
 
-type EventContext = Context<{ Bindings: Env }>;
+type EventContext = Context<HonoEnv>;
 
 export async function eventRouter(c: EventContext): Promise<Response> {
   const body = (await c.req.json()) as SlackEventPayload;

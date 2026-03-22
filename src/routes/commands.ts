@@ -6,12 +6,12 @@ import { handleCemProgress } from "../handlers/commands/cem-progress";
 import { handleCemPublish } from "../handlers/commands/cem-publish";
 import { handleCemReview } from "../handlers/commands/cem-review";
 import { handleCemSettings } from "../handlers/commands/cem-settings";
-import type { Env } from "../types";
+import type { HonoEnv } from "../types";
 
-type CommandContext = Context<{ Bindings: Env }>;
+type CommandContext = Context<HonoEnv>;
 
 export async function commandRouter(c: CommandContext): Promise<Response> {
-  const rawBody = c.get("rawBody" as never) as string;
+  const rawBody = c.get("rawBody");
   const params = new URLSearchParams(rawBody);
   const command = params.get("command") ?? "";
 

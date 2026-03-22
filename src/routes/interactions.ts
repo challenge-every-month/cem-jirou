@@ -17,24 +17,28 @@ import {
   buildReviewModal,
   handleReviewSubmit,
 } from "../handlers/commands/cem-review";
-import { handleSettingsSubmit } from "../handlers/commands/cem-settings";
+import {
+  buildSettingsModal,
+  handleSettingsSubmit,
+} from "../handlers/commands/cem-settings";
 import { updateChallenge } from "../services/challenge";
 import { getProjectsWithChallenges } from "../services/project";
 import { lazyProvision, updatePreferences } from "../services/user";
-import type { Env, SlackInteractionPayload } from "../types";
-import { openModal, publishHome } from "../utils/slack-api";
+import type { HonoEnv, SlackInteractionPayload } from "../types";
 import {
-  buildErrorView,
-  buildHomeView,
-  resolveDisplayMonth,
-} from "../views/home";
+  getCurrentYearMonth,
+  refreshHome,
+  safeWaitUntil,
+} from "../utils/handler-helpers";
+import { openModal, publishHome } from "../utils/slack-api";
+import { buildErrorView, buildHomeView } from "../views/home";
 
-type InteractionContext = Context<{ Bindings: Env }>;
+type InteractionContext = Context<HonoEnv>;
 
 export async function interactionRouter(
   c: InteractionContext,
 ): Promise<Response> {
-  const rawBody = c.get("rawBody" as never) as string;
+  const rawBody = c.get("rawBody");
   const params = new URLSearchParams(rawBody);
   const payloadStr = params.get("payload") ?? "{}";
   const payload = JSON.parse(payloadStr) as SlackInteractionPayload;
@@ -49,39 +53,6 @@ export async function interactionRouter(
     default:
       return c.text("", 200);
   }
-}
-
-// ─── Helper: safely schedule work with waitUntil ────────────────────────────
-
-function safeWaitUntil(c: InteractionContext, promise: Promise<void>): void {
-  try {
-    c.executionCtx.waitUntil(promise);
-  } catch {
-    // executionCtx not available in test environment
-  }
-}
-
-// ─── Helper: refresh App Home for a user ────────────────────────────────────
-
-async function refreshHome(
-  c: InteractionContext,
-  slackUserId: string,
-  userName: string,
-): Promise<void> {
-  const { user, preferences } = await lazyProvision(
-    c.env.DB,
-    slackUserId,
-    userName,
-  );
-  const { year, month } = resolveDisplayMonth(preferences);
-  const projects = await getProjectsWithChallenges(
-    c.env.DB,
-    user.id,
-    year,
-    month,
-  );
-  const view = buildHomeView(user, preferences, projects, year, month);
-  await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
 }
 
 // ─── Block Actions ───────────────────────────────────────────────────────────
@@ -247,9 +218,7 @@ async function handleBlockActions(
               userName,
             );
 
-            const now = new Date();
-            const year = now.getUTCFullYear();
-            const month = now.getUTCMonth() + 1;
+            const { year, month } = getCurrentYearMonth();
             const projects = await getProjectsWithChallenges(
               c.env.DB,
               user.id,
@@ -340,55 +309,4 @@ async function handleChallengeCommentSubmit(
     })(),
   );
   return c.text("", 200);
-}
-
-// ─── Settings modal builder (duplicated from cem-settings handler for block_action use) ──
-
-function buildSettingsModal(preferences: {
-  markdown_mode: number;
-  personal_reminder: number;
-}) {
-  return {
-    type: "modal",
-    callback_id: "modal_settings",
-    title: { type: "plain_text", text: "設定" },
-    submit: { type: "plain_text", text: "保存" },
-    close: { type: "plain_text", text: "キャンセル" },
-    blocks: [
-      {
-        type: "input",
-        block_id: "toggle_markdown_mode",
-        label: { type: "plain_text", text: "マークダウン入力モード" },
-        element: {
-          type: "radio_buttons",
-          action_id: "toggle_markdown_mode",
-          initial_option:
-            preferences.markdown_mode === 1
-              ? { text: { type: "plain_text", text: "ON" }, value: "true" }
-              : { text: { type: "plain_text", text: "OFF" }, value: "false" },
-          options: [
-            { text: { type: "plain_text", text: "OFF" }, value: "false" },
-            { text: { type: "plain_text", text: "ON" }, value: "true" },
-          ],
-        },
-      },
-      {
-        type: "input",
-        block_id: "toggle_personal_reminder",
-        label: { type: "plain_text", text: "個人リマインダー DM" },
-        element: {
-          type: "radio_buttons",
-          action_id: "toggle_personal_reminder",
-          initial_option:
-            preferences.personal_reminder === 1
-              ? { text: { type: "plain_text", text: "ON" }, value: "true" }
-              : { text: { type: "plain_text", text: "OFF" }, value: "false" },
-          options: [
-            { text: { type: "plain_text", text: "OFF" }, value: "false" },
-            { text: { type: "plain_text", text: "ON" }, value: "true" },
-          ],
-        },
-      },
-    ],
-  };
 }

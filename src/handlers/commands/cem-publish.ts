@@ -5,56 +5,21 @@ import {
   updateProject,
 } from "../../services/project";
 import { lazyProvision } from "../../services/user";
-import type { Env, SlackInteractionPayload } from "../../types";
+import type { HonoEnv, SlackInteractionPayload } from "../../types";
 import { AppError } from "../../types";
+import {
+  getCurrentYearMonth,
+  refreshHome,
+  safeWaitUntil,
+} from "../../utils/handler-helpers";
 import { postEphemeral, postMessage, publishHome } from "../../utils/slack-api";
 import { buildPublishMessage } from "../../views/channel-messages";
-import {
-  buildErrorView,
-  buildHomeView,
-  resolveDisplayMonth,
-} from "../../views/home";
-
-// ─── Helper: safeWaitUntil ───────────────────────────────────────────────────
-
-function safeWaitUntil(
-  c: Context<{ Bindings: Env }>,
-  promise: Promise<void>,
-): void {
-  try {
-    c.executionCtx.waitUntil(promise);
-  } catch {
-    // executionCtx not available in test environment
-  }
-}
-
-// ─── Helper: refresh App Home ────────────────────────────────────────────────
-
-async function refreshHome(
-  c: Context<{ Bindings: Env }>,
-  slackUserId: string,
-  userName: string,
-): Promise<void> {
-  const { user, preferences } = await lazyProvision(
-    c.env.DB,
-    slackUserId,
-    userName,
-  );
-  const { year, month } = resolveDisplayMonth(preferences);
-  const projects = await getProjectsWithChallenges(
-    c.env.DB,
-    user.id,
-    year,
-    month,
-  );
-  const view = buildHomeView(user, preferences, projects, year, month);
-  await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
-}
+import { buildErrorView } from "../../views/home";
 
 // ─── /cem_publish command handler ───────────────────────────────────────────
 
 export async function handleCemPublish(
-  c: Context<{ Bindings: Env }>,
+  c: Context<HonoEnv>,
   params: URLSearchParams,
 ): Promise<Response> {
   const slackUserId = params.get("user_id") ?? "";
@@ -63,9 +28,7 @@ export async function handleCemPublish(
 
   const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
 
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth() + 1;
+  const { year, month } = getCurrentYearMonth();
 
   const projects = await getProjectsWithChallenges(
     c.env.DB,
@@ -133,7 +96,7 @@ export async function handleCemPublish(
 // ─── home_publish block_action handler ──────────────────────────────────────
 
 export async function handleHomePublish(
-  c: Context<{ Bindings: Env }>,
+  c: Context<HonoEnv>,
   payload: SlackInteractionPayload,
 ): Promise<Response> {
   const action = payload.actions?.[0];
@@ -148,9 +111,7 @@ export async function handleHomePublish(
         const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
         const project = await assertProjectOwner(c.env.DB, projectId, user.id);
 
-        const now = new Date();
-        const year = now.getUTCFullYear();
-        const month = now.getUTCMonth() + 1;
+        const { year, month } = getCurrentYearMonth();
 
         const projectsWithChallenges = await getProjectsWithChallenges(
           c.env.DB,
