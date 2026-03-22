@@ -1,10 +1,13 @@
 import type { Context } from "hono";
+import { assertProjectOwner } from "../../services/authorization";
 import { createChallenge } from "../../services/challenge";
 import { createProject, getOrCreateInboxProject } from "../../services/project";
 import { lazyProvision } from "../../services/user";
 import type { HonoEnv, ProjectRow, SlackInteractionPayload } from "../../types";
+import { refreshHome, safeWaitUntil } from "../../utils/handler-helpers";
 import { parseMarkdownInput } from "../../utils/markdown-parser";
-import { openModal } from "../../utils/slack-api";
+import { openModal, publishHome } from "../../utils/slack-api";
+import { buildErrorView } from "../../views/home";
 
 export async function handleCemNew(
   c: Context<HonoEnv>,
@@ -174,6 +177,113 @@ export async function handleNewProjectMarkdownSubmit(
       });
     }
   }
+
+  return c.text("", 200);
+}
+
+// ─── home_open_new_project block_action handler ──────────────────────────────
+
+export async function handleHomeOpenNewProject(
+  c: Context<HonoEnv>,
+  payload: SlackInteractionPayload,
+): Promise<Response> {
+  const slackUserId = payload.user.id;
+  const userName = payload.user.username ?? payload.user.name;
+
+  const { preferences } = await lazyProvision(c.env.DB, slackUserId, userName);
+  const useMarkdown = preferences.markdown_mode === 1;
+  const modal = useMarkdown ? buildMarkdownModal() : buildStandardModal();
+
+  await openModal(c.env.SLACK_BOT_TOKEN, payload.trigger_id, modal);
+  return c.text("", 200);
+}
+
+// ─── home_open_add_challenge block_action handler ────────────────────────────
+
+export async function handleHomeOpenAddChallenge(
+  c: Context<HonoEnv>,
+  payload: SlackInteractionPayload,
+): Promise<Response> {
+  const action = payload.actions?.[0];
+  const projectId = parseInt(action?.value ?? "0", 10);
+  const slackUserId = payload.user.id;
+  const userName = payload.user.username ?? payload.user.name;
+
+  const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
+  await assertProjectOwner(c.env.DB, projectId, user.id);
+
+  const modal = {
+    type: "modal",
+    callback_id: "modal_add_challenge",
+    private_metadata: String(projectId),
+    title: { type: "plain_text", text: "チャレンジを追加" },
+    submit: { type: "plain_text", text: "追加" },
+    close: { type: "plain_text", text: "キャンセル" },
+    blocks: [
+      {
+        type: "input",
+        block_id: "input_challenge_name",
+        label: { type: "plain_text", text: "Challenge 名" },
+        element: {
+          type: "plain_text_input",
+          action_id: "input_challenge_name",
+          placeholder: { type: "plain_text", text: "例: Anki 30分" },
+        },
+      },
+      {
+        type: "input",
+        block_id: "input_due_on",
+        optional: true,
+        label: { type: "plain_text", text: "期日（任意）" },
+        element: { type: "datepicker", action_id: "input_due_on" },
+      },
+    ],
+  };
+
+  await openModal(c.env.SLACK_BOT_TOKEN, payload.trigger_id, modal);
+  return c.text("", 200);
+}
+
+// ─── modal_add_challenge view_submission handler ─────────────────────────────
+
+export async function handleAddChallengeSubmit(
+  c: Context<HonoEnv>,
+  payload: SlackInteractionPayload,
+): Promise<Response> {
+  const slackUserId = payload.user.id;
+  const userName = payload.user.username ?? payload.user.name;
+  const projectId = parseInt(payload.view?.private_metadata ?? "0", 10);
+  const values = payload.view?.state.values ?? {};
+  const challengeName =
+    values.input_challenge_name?.input_challenge_name?.value?.trim() ?? "";
+  const dueOn = values.input_due_on?.input_due_on?.selected_date ?? null;
+
+  safeWaitUntil(
+    c,
+    (async () => {
+      try {
+        const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
+        await assertProjectOwner(c.env.DB, projectId, user.id);
+
+        if (challengeName) {
+          await createChallenge(c.env.DB, {
+            project_id: projectId,
+            name: challengeName,
+            due_on: dueOn,
+          });
+        }
+
+        await refreshHome(c, slackUserId, userName);
+      } catch (e) {
+        const view = buildErrorView(
+          e instanceof Error ? e.message : "Unknown error",
+        );
+        await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(
+          () => {},
+        );
+      }
+    })(),
+  );
 
   return c.text("", 200);
 }

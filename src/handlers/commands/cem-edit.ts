@@ -4,16 +4,25 @@ import { updateProject } from "../../services/project";
 import { lazyProvision } from "../../services/user";
 import type { HonoEnv, SlackInteractionPayload } from "../../types";
 import { refreshHome, safeWaitUntil } from "../../utils/handler-helpers";
-import { openModal, publishHome } from "../../utils/slack-api";
+import { openModal, postEphemeral, publishHome } from "../../utils/slack-api";
 import { buildErrorView } from "../../views/home";
 
 // ─── /cem_edit command handler ───────────────────────────────────────────────
 
 export async function handleCemEdit(
   c: Context<HonoEnv>,
-  _params: URLSearchParams,
+  params: URLSearchParams,
 ): Promise<Response> {
-  return c.text("", 200); // TODO: multi-step edit via slash command
+  const slackUserId = params.get("user_id") ?? "";
+  const channelId = params.get("channel_id") ?? "";
+
+  await postEphemeral(
+    c.env.SLACK_BOT_TOKEN,
+    channelId,
+    slackUserId,
+    "プロジェクトの編集は App Home の「⚙️ 編集」ボタンから行ってください。",
+  );
+  return c.text("", 200);
 }
 
 // ─── home_open_edit_project block_action handler ─────────────────────────────
