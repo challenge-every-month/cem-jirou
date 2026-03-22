@@ -1,9 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { D1Database, D1PreparedStatement } from "@cloudflare/workers-types";
-import type { UserRow, UserPreferencesRow, ProjectRow, ChallengeRow } from "../../src/types";
+import type {
+  D1Database,
+  D1PreparedStatement,
+} from "@cloudflare/workers-types";
 import { Hono } from "hono";
-import type { Env, SlackInteractionPayload } from "../../src/types";
-import { handleCemNew, handleNewProjectStandardSubmit, handleNewProjectMarkdownSubmit } from "../../src/handlers/commands/cem-new";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  handleCemNew,
+  handleNewProjectMarkdownSubmit,
+  handleNewProjectStandardSubmit,
+} from "../../src/handlers/commands/cem-new";
+import type {
+  ChallengeRow,
+  Env,
+  ProjectRow,
+  SlackInteractionPayload,
+  UserPreferencesRow,
+  UserRow,
+} from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // Mock slack-api module
@@ -50,28 +63,42 @@ function makePreparedStatement(opts: {
     all: ReturnType<typeof vi.fn>;
   };
 
-  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(stmt);
+  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(
+    stmt,
+  );
 
   if (opts.error) {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockRejectedValue(opts.error);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockRejectedValue(opts.error);
-    (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { all: ReturnType<typeof vi.fn> }
+    ).all.mockRejectedValue(opts.error);
   } else {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockResolvedValue(opts.firstResult ?? null);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockResolvedValue(
-      opts.runResult ?? { success: true, meta: { last_row_id: 1 }, results: [] },
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockResolvedValue(opts.firstResult ?? null);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockResolvedValue(
+      opts.runResult ?? {
+        success: true,
+        meta: { last_row_id: 1 },
+        results: [],
+      },
     );
-    (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockResolvedValue(
-      opts.allResult ?? { results: [] },
-    );
+    (
+      stmt as unknown as { all: ReturnType<typeof vi.fn> }
+    ).all.mockResolvedValue(opts.allResult ?? { results: [] });
   }
 
   return stmt;
 }
 
-function makeDb(
-  prepareImpl: (sql: string) => D1PreparedStatement,
-): D1Database {
+function makeDb(prepareImpl: (sql: string) => D1PreparedStatement): D1Database {
   return {
     prepare: vi.fn().mockImplementation(prepareImpl),
     exec: vi.fn(),
@@ -92,7 +119,9 @@ const USER_ROW: UserRow = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
-function makePrefsRow(overrides: Partial<UserPreferencesRow> = {}): UserPreferencesRow {
+function makePrefsRow(
+  overrides: Partial<UserPreferencesRow> = {},
+): UserPreferencesRow {
   return {
     id: 1,
     user_id: 1,
@@ -146,9 +175,9 @@ const CHALLENGE_ROW: ChallengeRow = {
 // Context helper
 // ---------------------------------------------------------------------------
 
-function makeContext(db: D1Database, token = "xoxb-test") {
+function _makeContext(db: D1Database, token = "xoxb-test") {
   const app = new Hono<{ Bindings: Env }>();
-  let capturedContext: ReturnType<typeof app.request> | null = null;
+  const _capturedContext: ReturnType<typeof app.request> | null = null;
 
   // We need to capture the hono context — use a minimal approach
   const env: Env = {
@@ -204,9 +233,9 @@ describe("handleCemNew", () => {
 
   it("opens standard modal when markdown_mode=0", async () => {
     const prefs = makePrefsRow({ markdown_mode: 0 });
-    const db = makeDb(() => makePreparedStatement({ firstResult: USER_ROW }));
+    const _db = makeDb(() => makePreparedStatement({ firstResult: USER_ROW }));
     // lazyProvision calls: SELECT users, SELECT user_preferences
-    let callCount = 0;
+    const _callCount = 0;
     const dbMulti = makeDb((sql: string) => {
       if (sql.includes("user_preferences")) {
         return makePreparedStatement({ firstResult: prefs });
@@ -222,15 +251,20 @@ describe("handleCemNew", () => {
       trigger_id: "T123",
     }).toString();
 
-    const res = await app.request("/test/cem-new", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, env);
+    const res = await app.request(
+      "/test/cem-new",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     expect(openModal).toHaveBeenCalledOnce();
-    const [, triggerId, view] = (openModal as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, { callback_id: string }];
+    const [, triggerId, view] = (openModal as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, string, { callback_id: string }];
     expect(triggerId).toBe("T123");
     expect(view.callback_id).toBe("modal_new_project_standard");
   });
@@ -252,15 +286,20 @@ describe("handleCemNew", () => {
       trigger_id: "T456",
     }).toString();
 
-    const res = await app.request("/test/cem-new", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, env);
+    const res = await app.request(
+      "/test/cem-new",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     expect(openModal).toHaveBeenCalledOnce();
-    const [, triggerId, view] = (openModal as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, { callback_id: string }];
+    const [, triggerId, view] = (openModal as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, string, { callback_id: string }];
     expect(triggerId).toBe("T456");
     expect(view.callback_id).toBe("modal_new_project_markdown");
   });
@@ -271,7 +310,11 @@ describe("handleNewProjectStandardSubmit", () => {
     vi.clearAllMocks();
   });
 
-  function makeSubmitPayload(title: string, challengeName: string, dueOn: string | null = null): SlackInteractionPayload {
+  function makeSubmitPayload(
+    title: string,
+    challengeName: string,
+    dueOn: string | null = null,
+  ): SlackInteractionPayload {
     return {
       type: "view_submission",
       trigger_id: "T123",
@@ -282,13 +325,22 @@ describe("handleNewProjectStandardSubmit", () => {
         state: {
           values: {
             input_project_title: {
-              input_project_title: { type: "plain_text_input", value: title || undefined },
+              input_project_title: {
+                type: "plain_text_input",
+                value: title || undefined,
+              },
             },
             input_challenge_name_0: {
-              input_challenge_name_0: { type: "plain_text_input", value: challengeName },
+              input_challenge_name_0: {
+                type: "plain_text_input",
+                value: challengeName,
+              },
             },
             input_due_on_0: {
-              input_due_on_0: { type: "datepicker", selected_date: dueOn ?? undefined },
+              input_due_on_0: {
+                type: "datepicker",
+                selected_date: dueOn ?? undefined,
+              },
             },
           },
         },
@@ -297,14 +349,14 @@ describe("handleNewProjectStandardSubmit", () => {
   }
 
   it("creates project with given title when title is provided", async () => {
-    const createProjectMock = vi.fn().mockResolvedValue(PROJECT_ROW);
-    const createChallengeMock = vi.fn().mockResolvedValue(CHALLENGE_ROW);
-    const countMock = vi.fn().mockResolvedValue(0);
+    const _createProjectMock = vi.fn().mockResolvedValue(PROJECT_ROW);
+    const _createChallengeMock = vi.fn().mockResolvedValue(CHALLENGE_ROW);
+    const _countMock = vi.fn().mockResolvedValue(0);
 
     // We need to mock service modules for this test approach
     // Instead, use DB mock that simulates the behavior
     const prefs = makePrefsRow();
-    let prepareCallIndex = 0;
+    const _prepareCallIndex = 0;
     const dbMulti = makeDb((sql: string) => {
       if (sql.includes("SELECT * FROM users")) {
         return makePreparedStatement({ firstResult: USER_ROW });
@@ -339,17 +391,21 @@ describe("handleNewProjectStandardSubmit", () => {
     const { app, env } = makeTestApp(dbMulti);
     const payload = makeSubmitPayload("英語学習", "Anki 30分");
 
-    const res = await app.request("/test/new-standard-submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }, env);
+    const res = await app.request(
+      "/test/new-standard-submit",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     // Verify INSERT INTO projects was called
     const prepareMock = dbMulti.prepare as ReturnType<typeof vi.fn>;
-    const insertProjectCall = prepareMock.mock.calls.find(
-      (args: unknown[]) => (args[0] as string).includes("INSERT INTO projects"),
+    const insertProjectCall = prepareMock.mock.calls.find((args: unknown[]) =>
+      (args[0] as string).includes("INSERT INTO projects"),
     );
     expect(insertProjectCall).toBeDefined();
   });
@@ -394,17 +450,23 @@ describe("handleNewProjectStandardSubmit", () => {
     const { app, env } = makeTestApp(dbMulti);
     const payload = makeSubmitPayload("", "Anki 30分");
 
-    const res = await app.request("/test/new-standard-submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }, env);
+    const res = await app.request(
+      "/test/new-standard-submit",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     // Verify inbox query (no INSERT INTO projects for named project)
     const prepareMock = dbMulti.prepare as ReturnType<typeof vi.fn>;
     const insertNamedProjectCall = prepareMock.mock.calls.find(
-      (args: unknown[]) => (args[0] as string).includes("INSERT INTO projects") && !(args[0] as string).includes("is_inbox"),
+      (args: unknown[]) =>
+        (args[0] as string).includes("INSERT INTO projects") &&
+        !(args[0] as string).includes("is_inbox"),
     );
     // Named project should NOT be created when title is empty
     expect(insertNamedProjectCall).toBeUndefined();
@@ -462,28 +524,36 @@ describe("handleNewProjectMarkdownSubmit", () => {
         state: {
           values: {
             input_markdown_text: {
-              input_markdown_text: { type: "plain_text_input", value: markdownText },
+              input_markdown_text: {
+                type: "plain_text_input",
+                value: markdownText,
+              },
             },
           },
         },
       },
     };
 
-    const res = await app.request("/test/new-markdown-submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }, env);
+    const res = await app.request(
+      "/test/new-markdown-submit",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     // Verify project and challenges were created
     const prepareMock = dbMulti.prepare as ReturnType<typeof vi.fn>;
-    const insertProjectCall = prepareMock.mock.calls.find(
-      (args: unknown[]) => (args[0] as string).includes("INSERT INTO projects"),
+    const insertProjectCall = prepareMock.mock.calls.find((args: unknown[]) =>
+      (args[0] as string).includes("INSERT INTO projects"),
     );
     expect(insertProjectCall).toBeDefined();
     const insertChallengeCalls = prepareMock.mock.calls.filter(
-      (args: unknown[]) => (args[0] as string).includes("INSERT INTO challenges"),
+      (args: unknown[]) =>
+        (args[0] as string).includes("INSERT INTO challenges"),
     );
     expect(insertChallengeCalls.length).toBe(2);
   });

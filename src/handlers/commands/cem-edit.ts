@@ -1,17 +1,24 @@
 import type { Context } from "hono";
-import type { Env, SlackInteractionPayload } from "../../types";
-import { lazyProvision } from "../../services/user";
+import { assertProjectOwner } from "../../services/authorization";
 import {
   getProjectsWithChallenges,
   updateProject,
 } from "../../services/project";
-import { assertProjectOwner } from "../../services/authorization";
+import { lazyProvision } from "../../services/user";
+import type { Env, SlackInteractionPayload } from "../../types";
 import { openModal, publishHome } from "../../utils/slack-api";
-import { resolveDisplayMonth, buildHomeView, buildErrorView } from "../../views/home";
+import {
+  buildErrorView,
+  buildHomeView,
+  resolveDisplayMonth,
+} from "../../views/home";
 
 // ─── Helper: safeWaitUntil ───────────────────────────────────────────────────
 
-function safeWaitUntil(c: Context<{ Bindings: Env }>, promise: Promise<void>): void {
+function safeWaitUntil(
+  c: Context<{ Bindings: Env }>,
+  promise: Promise<void>,
+): void {
   try {
     c.executionCtx.waitUntil(promise);
   } catch {
@@ -26,9 +33,18 @@ async function refreshHome(
   slackUserId: string,
   userName: string,
 ): Promise<void> {
-  const { user, preferences } = await lazyProvision(c.env.DB, slackUserId, userName);
+  const { user, preferences } = await lazyProvision(
+    c.env.DB,
+    slackUserId,
+    userName,
+  );
   const { year, month } = resolveDisplayMonth(preferences);
-  const projects = await getProjectsWithChallenges(c.env.DB, user.id, year, month);
+  const projects = await getProjectsWithChallenges(
+    c.env.DB,
+    user.id,
+    year,
+    month,
+  );
   const view = buildHomeView(user, preferences, projects, year, month);
   await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
 }
@@ -93,23 +109,30 @@ export async function handleEditProjectSubmit(
   const projectId = parseInt(payload.view?.private_metadata ?? "0", 10);
   const values = payload.view?.state.values ?? {};
   const newTitle =
-    values["input_project_title"]?.["input_project_title"]?.value?.trim() ?? "";
+    values.input_project_title?.input_project_title?.value?.trim() ?? "";
 
-  safeWaitUntil(c, (async () => {
-    try {
-      const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
-      await assertProjectOwner(c.env.DB, projectId, user.id);
+  safeWaitUntil(
+    c,
+    (async () => {
+      try {
+        const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
+        await assertProjectOwner(c.env.DB, projectId, user.id);
 
-      if (newTitle) {
-        await updateProject(c.env.DB, projectId, { title: newTitle });
+        if (newTitle) {
+          await updateProject(c.env.DB, projectId, { title: newTitle });
+        }
+
+        await refreshHome(c, slackUserId, userName);
+      } catch (e) {
+        const view = buildErrorView(
+          e instanceof Error ? e.message : "Unknown error",
+        );
+        await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(
+          () => {},
+        );
       }
-
-      await refreshHome(c, slackUserId, userName);
-    } catch (e) {
-      const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
-      await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(() => {});
-    }
-  })());
+    })(),
+  );
 
   return c.text("", 200);
 }

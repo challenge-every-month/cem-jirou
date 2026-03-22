@@ -1,9 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { D1Database, D1PreparedStatement } from "@cloudflare/workers-types";
-import type { UserRow, UserPreferencesRow, ProjectRow, ChallengeRow, SlackInteractionPayload } from "../../src/types";
+import type {
+  D1Database,
+  D1PreparedStatement,
+} from "@cloudflare/workers-types";
 import { Hono } from "hono";
-import type { Env } from "../../src/types";
-import { handleCemProgress, handleProgressSubmit } from "../../src/handlers/commands/cem-progress";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  handleCemProgress,
+  handleProgressSubmit,
+} from "../../src/handlers/commands/cem-progress";
+import type {
+  ChallengeRow,
+  Env,
+  ProjectRow,
+  SlackInteractionPayload,
+  UserPreferencesRow,
+  UserRow,
+} from "../../src/types";
 
 // ─── Mock slack-api ──────────────────────────────────────────────────────────
 
@@ -16,7 +28,7 @@ vi.mock("../../src/utils/slack-api", () => ({
   slackPost: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
-import { openModal, postMessage, postEphemeral } from "../../src/utils/slack-api";
+import { openModal, postEphemeral } from "../../src/utils/slack-api";
 
 // ─── D1 mock helpers ─────────────────────────────────────────────────────────
 
@@ -45,20 +57,36 @@ function makePreparedStatement(opts: {
     all: ReturnType<typeof vi.fn>;
   };
 
-  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(stmt);
+  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(
+    stmt,
+  );
 
   if (opts.error) {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockRejectedValue(opts.error);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockRejectedValue(opts.error);
-    (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { all: ReturnType<typeof vi.fn> }
+    ).all.mockRejectedValue(opts.error);
   } else {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockResolvedValue(opts.firstResult ?? null);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockResolvedValue(
-      opts.runResult ?? { success: true, meta: { last_row_id: 1 }, results: [] },
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockResolvedValue(opts.firstResult ?? null);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockResolvedValue(
+      opts.runResult ?? {
+        success: true,
+        meta: { last_row_id: 1 },
+        results: [],
+      },
     );
-    (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockResolvedValue(
-      opts.allResult ?? { results: [] },
-    );
+    (
+      stmt as unknown as { all: ReturnType<typeof vi.fn> }
+    ).all.mockResolvedValue(opts.allResult ?? { results: [] });
   }
 
   return stmt;
@@ -147,13 +175,17 @@ function makeTestApp(db: D1Database, token = "xoxb-test") {
 
 function makeStandardDb(): D1Database {
   return makeDb((sql: string) => {
-    if (sql.includes("user_preferences")) return makePreparedStatement({ firstResult: PREFS_ROW });
-    if (sql.includes("FROM users") || sql.includes("SELECT * FROM users")) return makePreparedStatement({ firstResult: USER_ROW });
+    if (sql.includes("user_preferences"))
+      return makePreparedStatement({ firstResult: PREFS_ROW });
+    if (sql.includes("FROM users") || sql.includes("SELECT * FROM users"))
+      return makePreparedStatement({ firstResult: USER_ROW });
     if (sql.includes("FROM projects") && sql.includes("IN (")) {
       return makePreparedStatement({ allResult: { results: [CHALLENGE_ROW] } });
     }
     if (sql.includes("FROM projects")) {
-      return makePreparedStatement({ allResult: { results: [PUBLISHED_PROJECT] } });
+      return makePreparedStatement({
+        allResult: { results: [PUBLISHED_PROJECT] },
+      });
     }
     if (sql.includes("FROM challenges") || sql.includes("UPDATE challenges")) {
       return makePreparedStatement({
@@ -183,28 +215,37 @@ describe("handleCemProgress", () => {
       channel_id: "C123",
     }).toString();
 
-    const res = await app.request("/test/cem-progress", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, env);
+    const res = await app.request(
+      "/test/cem-progress",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     expect(openModal).toHaveBeenCalledOnce();
-    const [, , view] = (openModal as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, { callback_id: string }];
+    const [, , view] = (openModal as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, string, { callback_id: string }];
     expect(view.callback_id).toBe("modal_progress_report");
   });
 
   it("sends ephemeral error when no published project found", async () => {
     const db = makeDb((sql: string) => {
-      if (sql.includes("user_preferences")) return makePreparedStatement({ firstResult: PREFS_ROW });
-      if (sql.includes("FROM users") || sql.includes("SELECT * FROM users")) return makePreparedStatement({ firstResult: USER_ROW });
+      if (sql.includes("user_preferences"))
+        return makePreparedStatement({ firstResult: PREFS_ROW });
+      if (sql.includes("FROM users") || sql.includes("SELECT * FROM users"))
+        return makePreparedStatement({ firstResult: USER_ROW });
       if (sql.includes("FROM projects") && sql.includes("IN (")) {
         return makePreparedStatement({ allResult: { results: [] } });
       }
       if (sql.includes("FROM projects")) {
         // Return only draft projects
-        return makePreparedStatement({ allResult: { results: [{ ...PUBLISHED_PROJECT, status: "draft" }] } });
+        return makePreparedStatement({
+          allResult: { results: [{ ...PUBLISHED_PROJECT, status: "draft" }] },
+        });
       }
       return makePreparedStatement({ firstResult: null });
     });
@@ -218,15 +259,20 @@ describe("handleCemProgress", () => {
       channel_id: "C123",
     }).toString();
 
-    const res = await app.request("/test/cem-progress", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, env);
+    const res = await app.request(
+      "/test/cem-progress",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     expect(postEphemeral).toHaveBeenCalledOnce();
-    const [, , , text] = (postEphemeral as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, string, string];
+    const [, , , text] = (postEphemeral as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, string, string, string];
     expect(text).toContain("進行中のプロジェクトが見つかりません");
   });
 
@@ -241,11 +287,15 @@ describe("handleCemProgress", () => {
       channel_id: "C123",
     }).toString();
 
-    const res = await app.request("/test/cem-progress", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, env);
+    const res = await app.request(
+      "/test/cem-progress",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
   });
@@ -283,11 +333,15 @@ describe("handleProgressSubmit", () => {
       },
     };
 
-    const res = await app.request("/test/progress-submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }, env);
+    const res = await app.request(
+      "/test/progress-submit",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
   });

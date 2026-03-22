@@ -24,7 +24,7 @@ export interface UserRow {
 export interface UserPreferencesRow {
   id: number;
   user_id: number;
-  markdown_mode: number;    // SQLite BOOLEAN → 0 | 1
+  markdown_mode: number; // SQLite BOOLEAN → 0 | 1
   personal_reminder: number; // SQLite BOOLEAN → 0 | 1
   viewed_year: number | null;
   viewed_month: number | null;
@@ -58,7 +58,7 @@ export interface ChallengeRow {
   project_id: number;
   name: string;
   status: ChallengeStatus;
-  due_on: string | null;           // "YYYY-MM-DD" または null
+  due_on: string | null; // "YYYY-MM-DD" または null
   progress_comment: string | null;
   review_comment: string | null;
   created_at: string;

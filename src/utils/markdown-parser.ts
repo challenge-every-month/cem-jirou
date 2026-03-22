@@ -1,4 +1,4 @@
-import type { ParsedProject, ParsedChallenge } from "../types";
+import type { ParsedChallenge, ParsedProject } from "../types";
 
 /**
  * Zero-pads a number to 2 digits.
@@ -65,10 +65,11 @@ export function parseMarkdownInput(
 ): ParsedProject[] {
   const lines = text.split("\n");
   const projects: ParsedProject[] = [];
-  let currentProject: { title: string | null; challenges: ParsedChallenge[] } = {
-    title: null,
-    challenges: [],
-  };
+  let currentProject: { title: string | null; challenges: ParsedChallenge[] } =
+    {
+      title: null,
+      challenges: [],
+    };
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -83,7 +84,11 @@ export function parseMarkdownInput(
       currentProject = { title: trimmed.slice(2).trim(), challenges: [] };
     } else if (trimmed.startsWith("- ")) {
       const rawText = trimmed.slice(2);
-      const { name, due_on } = extractDueDate(rawText, contextYear, contextMonth);
+      const { name, due_on } = extractDueDate(
+        rawText,
+        contextYear,
+        contextMonth,
+      );
       currentProject.challenges.push({ name: name.trim(), due_on });
     }
   }

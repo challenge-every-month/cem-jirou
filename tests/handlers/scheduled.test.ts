@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { D1Database } from "@cloudflare/workers-types";
-import type { Env } from "../../src/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { handleScheduled } from "../../src/handlers/scheduled";
+import type { Env } from "../../src/types";
 
 // ─── Mock slack-api ──────────────────────────────────────────────────────────
 
@@ -14,18 +14,22 @@ vi.mock("../../src/utils/slack-api", () => ({
   slackPost: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
-import { postMessage, postDm } from "../../src/utils/slack-api";
+import { postDm, postMessage } from "../../src/utils/slack-api";
 
 // ─── D1 Mock Helpers ──────────────────────────────────────────────────────────
 
-function makeD1Mock(opts: {
-  allResults?: Record<string, unknown>[];
-  firstResult?: Record<string, unknown> | null;
-} = {}): D1Database {
+function makeD1Mock(
+  opts: {
+    allResults?: Record<string, unknown>[];
+    firstResult?: Record<string, unknown> | null;
+  } = {},
+): D1Database {
   const mockAll = vi.fn().mockResolvedValue({ results: opts.allResults ?? [] });
   const mockFirst = vi.fn().mockResolvedValue(opts.firstResult ?? null);
   const mockRun = vi.fn().mockResolvedValue({ success: true });
-  const mockBind = vi.fn().mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
+  const mockBind = vi
+    .fn()
+    .mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
   const mockPrepare = vi.fn().mockReturnValue({ bind: mockBind });
 
   return {
@@ -91,12 +95,8 @@ describe("handleScheduled", () => {
       await handleScheduled(event, env);
 
       expect(postMessage).toHaveBeenCalledOnce();
-      const [token, channel] = (postMessage as ReturnType<typeof vi.fn>).mock.calls[0] as [
-        string,
-        string,
-        string,
-        unknown[],
-      ];
+      const [token, channel] = (postMessage as ReturnType<typeof vi.fn>).mock
+        .calls[0] as [string, string, string, unknown[]];
       expect(token).toBe("xoxb-test");
       expect(channel).toBe("C123");
     });
@@ -108,11 +108,8 @@ describe("handleScheduled", () => {
 
       await handleScheduled(event, env);
 
-      const [, , text] = (postMessage as ReturnType<typeof vi.fn>).mock.calls[0] as [
-        string,
-        string,
-        string,
-      ];
+      const [, , text] = (postMessage as ReturnType<typeof vi.fn>).mock
+        .calls[0] as [string, string, string];
       expect(text).toContain("新月チャレンジ開始");
     });
   });
@@ -132,10 +129,7 @@ describe("handleScheduled", () => {
 
     it("sends DM to each user with personal_reminder = 1", async () => {
       const db = makeD1Mock({
-        allResults: [
-          { slack_user_id: "U001" },
-          { slack_user_id: "U002" },
-        ],
+        allResults: [{ slack_user_id: "U001" }, { slack_user_id: "U002" }],
       });
       const env = makeEnv(db);
       const event = makeScheduledEvent("0 1 1 * *");
@@ -143,7 +137,11 @@ describe("handleScheduled", () => {
       await handleScheduled(event, env);
 
       expect(postDm).toHaveBeenCalledTimes(2);
-      const calls = (postDm as ReturnType<typeof vi.fn>).mock.calls as [string, string, string][];
+      const calls = (postDm as ReturnType<typeof vi.fn>).mock.calls as [
+        string,
+        string,
+        string,
+      ][];
       expect(calls[0][1]).toBe("U001");
       expect(calls[1][1]).toBe("U002");
     });
@@ -157,7 +155,11 @@ describe("handleScheduled", () => {
 
       await handleScheduled(event, env);
 
-      const [, , text] = (postDm as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, string];
+      const [, , text] = (postDm as ReturnType<typeof vi.fn>).mock.calls[0] as [
+        string,
+        string,
+        string,
+      ];
       expect(text).toContain("今月のチャレンジを登録しましょう");
     });
   });
@@ -173,11 +175,8 @@ describe("handleScheduled", () => {
       await handleScheduled(event, env);
 
       expect(postMessage).toHaveBeenCalledOnce();
-      const [token, channel] = (postMessage as ReturnType<typeof vi.fn>).mock.calls[0] as [
-        string,
-        string,
-        string,
-      ];
+      const [token, channel] = (postMessage as ReturnType<typeof vi.fn>).mock
+        .calls[0] as [string, string, string];
       expect(token).toBe("xoxb-test");
       expect(channel).toBe("C123");
     });
@@ -226,7 +225,9 @@ describe("handleScheduled", () => {
           mockAll.mockResolvedValue({ results: [] });
         }
 
-        const mockBind = vi.fn().mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
+        const mockBind = vi
+          .fn()
+          .mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
         return { bind: mockBind };
       });
       const env = makeEnv(db);
@@ -249,10 +250,8 @@ describe("handleScheduled", () => {
       await handleScheduled(event, env);
 
       expect(postMessage).toHaveBeenCalledOnce();
-      const [, channel] = (postMessage as ReturnType<typeof vi.fn>).mock.calls[0] as [
-        string,
-        string,
-      ];
+      const [, channel] = (postMessage as ReturnType<typeof vi.fn>).mock
+        .calls[0] as [string, string];
       expect(channel).toBe("C123");
     });
   });
@@ -294,7 +293,9 @@ describe("handleScheduled", () => {
           mockAll.mockResolvedValue({ results: [] });
         }
 
-        const mockBind = vi.fn().mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
+        const mockBind = vi
+          .fn()
+          .mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
         return { bind: mockBind };
       });
       const env = makeEnv(db);
@@ -318,7 +319,9 @@ describe("handleScheduled", () => {
           mockAll.mockResolvedValue({ results: [] });
         }
 
-        const mockBind = vi.fn().mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
+        const mockBind = vi
+          .fn()
+          .mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
         return { bind: mockBind };
       });
       const env = makeEnv(db);
@@ -326,7 +329,11 @@ describe("handleScheduled", () => {
 
       await handleScheduled(event, env);
 
-      const [, , text] = (postDm as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, string];
+      const [, , text] = (postDm as ReturnType<typeof vi.fn>).mock.calls[0] as [
+        string,
+        string,
+        string,
+      ];
       expect(text).toContain("振り返り");
     });
 
@@ -339,7 +346,11 @@ describe("handleScheduled", () => {
         if (sql.includes("personal_reminder")) {
           mockAll.mockResolvedValue({ results: [{ slack_user_id: "U001" }] });
         } else if (sql.includes("FROM users WHERE slack_user_id")) {
-          mockFirst.mockResolvedValue({ id: 1, slack_user_id: "U001", user_name: "testuser" });
+          mockFirst.mockResolvedValue({
+            id: 1,
+            slack_user_id: "U001",
+            user_name: "testuser",
+          });
           mockAll.mockResolvedValue({ results: [] });
         } else if (sql.includes("FROM projects") && !sql.includes("JOIN")) {
           mockAll.mockResolvedValue({
@@ -378,7 +389,9 @@ describe("handleScheduled", () => {
           mockAll.mockResolvedValue({ results: [] });
         }
 
-        const mockBind = vi.fn().mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
+        const mockBind = vi
+          .fn()
+          .mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
         return { bind: mockBind };
       });
       const env = makeEnv(db);
@@ -388,11 +401,17 @@ describe("handleScheduled", () => {
 
       // Should send 2 DMs: base reminder + progress summary
       expect(postDm).toHaveBeenCalledTimes(2);
-      const calls = (postDm as ReturnType<typeof vi.fn>).mock.calls as [string, string, string][];
-      const summaryCall = calls.find(([, , text]) => text.includes("進捗まとめ"));
+      const calls = (postDm as ReturnType<typeof vi.fn>).mock.calls as [
+        string,
+        string,
+        string,
+      ][];
+      const summaryCall = calls.find(([, , text]) =>
+        text.includes("進捗まとめ"),
+      );
       expect(summaryCall).toBeDefined();
-      expect(summaryCall![2]).toContain("英語学習");
-      expect(summaryCall![2]).toContain("1/1");
+      expect(summaryCall?.[2]).toContain("英語学習");
+      expect(summaryCall?.[2]).toContain("1/1");
     });
   });
 
@@ -452,7 +471,9 @@ describe("handleScheduled", () => {
           mockAll.mockResolvedValue({ results: [] });
         }
 
-        const mockBind = vi.fn().mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
+        const mockBind = vi
+          .fn()
+          .mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
         return { bind: mockBind };
       });
       const env = makeEnv(db);
@@ -494,7 +515,9 @@ describe("handleScheduled", () => {
           mockAll.mockResolvedValue({ results: [] });
         }
 
-        const mockBind = vi.fn().mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
+        const mockBind = vi
+          .fn()
+          .mockReturnValue({ run: mockRun, first: mockFirst, all: mockAll });
         return { bind: mockBind };
       });
       const env = makeEnv(db);
@@ -502,7 +525,11 @@ describe("handleScheduled", () => {
 
       await handleScheduled(event, env);
 
-      const [, , text] = (postDm as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, string];
+      const [, , text] = (postDm as ReturnType<typeof vi.fn>).mock.calls[0] as [
+        string,
+        string,
+        string,
+      ];
       expect(text).toContain("本日が期日のチャレンジ");
       expect(text).toContain("Anki 30分");
     });

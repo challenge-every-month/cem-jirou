@@ -1,14 +1,16 @@
-import { describe, it, expect, vi } from "vitest";
-import type { D1Database, D1PreparedStatement } from "@cloudflare/workers-types";
-import type { ProjectRow, ChallengeRow } from "../../src/types";
-import { AppError } from "../../src/types";
+import type {
+  D1Database,
+  D1PreparedStatement,
+} from "@cloudflare/workers-types";
+import { describe, expect, it, vi } from "vitest";
 import {
-  getProjectsWithChallenges,
   createProject,
   getOrCreateInboxProject,
+  getProjectsWithChallenges,
   updateProject,
-  deleteProject,
 } from "../../src/services/project";
+import type { ChallengeRow, ProjectRow } from "../../src/types";
+import { AppError } from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // D1 mock helpers
@@ -39,28 +41,42 @@ function makePreparedStatement(opts: {
     all: ReturnType<typeof vi.fn>;
   };
 
-  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(stmt);
+  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(
+    stmt,
+  );
 
   if (opts.error) {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockRejectedValue(opts.error);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockRejectedValue(opts.error);
-    (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { all: ReturnType<typeof vi.fn> }
+    ).all.mockRejectedValue(opts.error);
   } else {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockResolvedValue(opts.firstResult ?? null);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockResolvedValue(
-      opts.runResult ?? { success: true, meta: { last_row_id: 1 }, results: [] },
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockResolvedValue(opts.firstResult ?? null);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockResolvedValue(
+      opts.runResult ?? {
+        success: true,
+        meta: { last_row_id: 1 },
+        results: [],
+      },
     );
-    (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockResolvedValue(
-      opts.allResult ?? { results: [] },
-    );
+    (
+      stmt as unknown as { all: ReturnType<typeof vi.fn> }
+    ).all.mockResolvedValue(opts.allResult ?? { results: [] });
   }
 
   return stmt;
 }
 
-function makeDb(
-  prepareImpl: (sql: string) => D1PreparedStatement,
-): D1Database {
+function makeDb(prepareImpl: (sql: string) => D1PreparedStatement): D1Database {
   return {
     prepare: vi.fn().mockImplementation(prepareImpl),
     exec: vi.fn(),
@@ -189,10 +205,7 @@ describe("getOrCreateInboxProject", () => {
     };
 
     const db = makeDb((sql) => {
-      if (
-        sql.includes("is_inbox = 1") ||
-        sql.includes("is_inbox=1")
-      ) {
+      if (sql.includes("is_inbox = 1") || sql.includes("is_inbox=1")) {
         return makePreparedStatement({ firstResult: null });
       }
       if (sql.startsWith("INSERT INTO projects")) {

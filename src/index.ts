@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import type { Env } from "./types";
+import { handleScheduled } from "./handlers/scheduled";
 import { slackVerifyMiddleware } from "./middleware/slack-verify";
 import { commandRouter } from "./routes/commands";
-import { interactionRouter } from "./routes/interactions";
 import { eventRouter } from "./routes/events";
+import { interactionRouter } from "./routes/interactions";
 import { usersRouter } from "./routes/users";
-import { handleScheduled } from "./handlers/scheduled";
+import type { Env } from "./types";
 
 export const app = new Hono<{ Bindings: Env }>();
 

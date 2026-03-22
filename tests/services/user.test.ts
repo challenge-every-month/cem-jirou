@@ -1,11 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { D1Database, D1PreparedStatement } from "@cloudflare/workers-types";
-import type { UserRow, UserPreferencesRow } from "../../src/types";
+import type {
+  D1Database,
+  D1PreparedStatement,
+} from "@cloudflare/workers-types";
+import { describe, expect, it, vi } from "vitest";
 import {
-  lazyProvision,
   findUserBySlackId,
+  lazyProvision,
   updatePreferences,
 } from "../../src/services/user";
+import type { UserPreferencesRow, UserRow } from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // D1 mock helpers
@@ -35,24 +38,36 @@ function makePreparedStatement(opts: {
   };
 
   // bind() returns the same statement (chaining)
-  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(stmt);
+  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(
+    stmt,
+  );
 
   if (opts.error) {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockRejectedValue(opts.error);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockRejectedValue(opts.error);
   } else {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockResolvedValue(opts.firstResult ?? null);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockResolvedValue(
-      opts.runResult ?? { success: true, meta: { last_row_id: 1 }, results: [] },
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockResolvedValue(opts.firstResult ?? null);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockResolvedValue(
+      opts.runResult ?? {
+        success: true,
+        meta: { last_row_id: 1 },
+        results: [],
+      },
     );
   }
 
   return stmt;
 }
 
-function makeDb(
-  prepareImpl: (sql: string) => D1PreparedStatement,
-): D1Database {
+function makeDb(prepareImpl: (sql: string) => D1PreparedStatement): D1Database {
   return {
     prepare: vi.fn().mockImplementation(prepareImpl),
     exec: vi.fn(),
@@ -90,10 +105,10 @@ const PREFS_ROW: UserPreferencesRow = {
 
 describe("lazyProvision", () => {
   it("returns wasCreated=true when user does not exist", async () => {
-    let callCount = 0;
+    let _callCount = 0;
     const db = makeDb((sql) => {
       if (sql.startsWith("SELECT * FROM users WHERE slack_user_id")) {
-        callCount++;
+        _callCount++;
         // First call returns null (user not found); should not be called again in happy path
         return makePreparedStatement({ firstResult: null });
       }
@@ -111,7 +126,9 @@ describe("lazyProvision", () => {
         return makePreparedStatement({ firstResult: { ...USER_ROW, id: 42 } });
       }
       if (sql.startsWith("SELECT * FROM user_preferences WHERE user_id")) {
-        return makePreparedStatement({ firstResult: { ...PREFS_ROW, user_id: 42 } });
+        return makePreparedStatement({
+          firstResult: { ...PREFS_ROW, user_id: 42 },
+        });
       }
       return makePreparedStatement({});
     });
@@ -142,7 +159,9 @@ describe("lazyProvision", () => {
   });
 
   it("handles UNIQUE constraint race condition gracefully", async () => {
-    const uniqueError = new Error("UNIQUE constraint failed: users.slack_user_id");
+    const uniqueError = new Error(
+      "UNIQUE constraint failed: users.slack_user_id",
+    );
 
     let selectCount = 0;
     const db = makeDb((sql) => {
@@ -181,7 +200,9 @@ describe("lazyProvision", () => {
         const stmt = makePreparedStatement({
           runResult: { success: true, meta: { last_row_id: 10 }, results: [] },
         });
-        const originalBind = (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind;
+        const originalBind = (
+          stmt as unknown as { bind: ReturnType<typeof vi.fn> }
+        ).bind;
         originalBind.mockImplementation((_slackId: string, name: string) => {
           capturedUserName = name;
           return stmt;
@@ -199,7 +220,9 @@ describe("lazyProvision", () => {
         });
       }
       if (sql.startsWith("SELECT * FROM user_preferences WHERE user_id")) {
-        return makePreparedStatement({ firstResult: { ...PREFS_ROW, user_id: 10 } });
+        return makePreparedStatement({
+          firstResult: { ...PREFS_ROW, user_id: 10 },
+        });
       }
       return makePreparedStatement({});
     });
@@ -221,7 +244,9 @@ describe("lazyProvision", () => {
         const stmt = makePreparedStatement({
           runResult: { success: true, meta: { last_row_id: 5 }, results: [] },
         });
-        const originalBind = (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind;
+        const originalBind = (
+          stmt as unknown as { bind: ReturnType<typeof vi.fn> }
+        ).bind;
         originalBind.mockImplementation((_slackId: string, name: string) => {
           capturedUserName = name;
           return stmt;
@@ -237,7 +262,9 @@ describe("lazyProvision", () => {
         return makePreparedStatement({ firstResult: { ...USER_ROW, id: 5 } });
       }
       if (sql.startsWith("SELECT * FROM user_preferences WHERE user_id")) {
-        return makePreparedStatement({ firstResult: { ...PREFS_ROW, user_id: 5 } });
+        return makePreparedStatement({
+          firstResult: { ...PREFS_ROW, user_id: 5 },
+        });
       }
       return makePreparedStatement({});
     });
@@ -254,9 +281,7 @@ describe("lazyProvision", () => {
 
 describe("findUserBySlackId", () => {
   it("returns user when found", async () => {
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: USER_ROW }),
-    );
+    const db = makeDb(() => makePreparedStatement({ firstResult: USER_ROW }));
 
     const result = await findUserBySlackId(db, "U123");
 
@@ -264,9 +289,7 @@ describe("findUserBySlackId", () => {
   });
 
   it("returns null when user not found", async () => {
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: null }),
-    );
+    const db = makeDb(() => makePreparedStatement({ firstResult: null }));
 
     const result = await findUserBySlackId(db, "U_NOTFOUND");
 
@@ -288,12 +311,16 @@ describe("updatePreferences", () => {
         capturedSql = sql;
         const stmt = {
           bind: vi.fn(),
-          run: vi.fn().mockResolvedValue({ success: true, meta: {}, results: [] }),
+          run: vi
+            .fn()
+            .mockResolvedValue({ success: true, meta: {}, results: [] }),
           first: vi.fn(),
           all: vi.fn(),
           raw: vi.fn(),
         } as unknown as D1PreparedStatement;
-        (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockImplementation((...args: unknown[]) => {
+        (
+          stmt as unknown as { bind: ReturnType<typeof vi.fn> }
+        ).bind.mockImplementation((...args: unknown[]) => {
           capturedValues = args;
           return stmt;
         });
@@ -322,12 +349,16 @@ describe("updatePreferences", () => {
       if (sql.startsWith("UPDATE")) {
         const stmt = {
           bind: vi.fn(),
-          run: vi.fn().mockResolvedValue({ success: true, meta: {}, results: [] }),
+          run: vi
+            .fn()
+            .mockResolvedValue({ success: true, meta: {}, results: [] }),
           first: vi.fn(),
           all: vi.fn(),
           raw: vi.fn(),
         } as unknown as D1PreparedStatement;
-        (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockImplementation((...args: unknown[]) => {
+        (
+          stmt as unknown as { bind: ReturnType<typeof vi.fn> }
+        ).bind.mockImplementation((...args: unknown[]) => {
           capturedValues = args;
           return stmt;
         });
@@ -341,7 +372,10 @@ describe("updatePreferences", () => {
       return makePreparedStatement({});
     });
 
-    await updatePreferences(db, 1, { markdown_mode: true, personal_reminder: false });
+    await updatePreferences(db, 1, {
+      markdown_mode: true,
+      personal_reminder: false,
+    });
 
     expect(capturedValues).toContain(1); // markdown_mode: true → 1
     expect(capturedValues).toContain(0); // personal_reminder: false → 0

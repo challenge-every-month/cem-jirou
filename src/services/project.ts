@@ -1,12 +1,12 @@
-import { AppError } from "../types";
 import type { D1Database } from "@cloudflare/workers-types";
 import type {
-  ProjectRow,
-  ProjectWithChallenges,
   ChallengeRow,
   CreateProjectInput,
+  ProjectRow,
+  ProjectWithChallenges,
   UpdateProjectInput,
 } from "../types";
+import { AppError } from "../types";
 
 /**
  * Returns all projects (with nested challenges) for a given user/year/month.
@@ -32,9 +32,7 @@ export async function getProjectsWithChallenges(
   const projectIds = rows.map((p) => p.id);
   const placeholders = projectIds.map(() => "?").join(", ");
   const challenges = await db
-    .prepare(
-      `SELECT * FROM challenges WHERE project_id IN (${placeholders})`,
-    )
+    .prepare(`SELECT * FROM challenges WHERE project_id IN (${placeholders})`)
     .bind(...projectIds)
     .all<ChallengeRow>();
 
@@ -150,7 +148,11 @@ export async function updateProject(
     .first<ProjectRow>();
 
   if (!current) {
-    throw new AppError("PROJECT_NOT_FOUND", `Project ${projectId} not found`, 404);
+    throw new AppError(
+      "PROJECT_NOT_FOUND",
+      `Project ${projectId} not found`,
+      404,
+    );
   }
 
   if (current.status === "reviewed") {
@@ -198,8 +200,5 @@ export async function deleteProject(
   db: D1Database,
   projectId: number,
 ): Promise<void> {
-  await db
-    .prepare("DELETE FROM projects WHERE id = ?")
-    .bind(projectId)
-    .run();
+  await db.prepare("DELETE FROM projects WHERE id = ?").bind(projectId).run();
 }

@@ -1,21 +1,39 @@
 import type { Context } from "hono";
-import type { Env, SlackInteractionPayload } from "../types";
-import { handleNewProjectStandardSubmit, handleNewProjectMarkdownSubmit } from "../handlers/commands/cem-new";
-import { handleSettingsSubmit } from "../handlers/commands/cem-settings";
-import { handleHomeOpenEditProject, handleEditProjectSubmit } from "../handlers/commands/cem-edit";
-import { handleHomeConfirmDeleteProject, handleDeleteProjectConfirmSubmit } from "../handlers/commands/cem-delete";
-import { handleHomePublish } from "../handlers/commands/cem-publish";
+import {
+  handleDeleteProjectConfirmSubmit,
+  handleHomeConfirmDeleteProject,
+} from "../handlers/commands/cem-delete";
+import {
+  handleEditProjectSubmit,
+  handleHomeOpenEditProject,
+} from "../handlers/commands/cem-edit";
+import {
+  handleNewProjectMarkdownSubmit,
+  handleNewProjectStandardSubmit,
+} from "../handlers/commands/cem-new";
 import { handleProgressSubmit } from "../handlers/commands/cem-progress";
-import { handleReviewSubmit, buildReviewModal } from "../handlers/commands/cem-review";
-import { lazyProvision, updatePreferences } from "../services/user";
-import { getProjectsWithChallenges } from "../services/project";
+import { handleHomePublish } from "../handlers/commands/cem-publish";
+import {
+  buildReviewModal,
+  handleReviewSubmit,
+} from "../handlers/commands/cem-review";
+import { handleSettingsSubmit } from "../handlers/commands/cem-settings";
 import { updateChallenge } from "../services/challenge";
-import { resolveDisplayMonth, buildHomeView, buildErrorView } from "../views/home";
-import { publishHome, openModal } from "../utils/slack-api";
+import { getProjectsWithChallenges } from "../services/project";
+import { lazyProvision, updatePreferences } from "../services/user";
+import type { Env, SlackInteractionPayload } from "../types";
+import { openModal, publishHome } from "../utils/slack-api";
+import {
+  buildErrorView,
+  buildHomeView,
+  resolveDisplayMonth,
+} from "../views/home";
 
 type InteractionContext = Context<{ Bindings: Env }>;
 
-export async function interactionRouter(c: InteractionContext): Promise<Response> {
+export async function interactionRouter(
+  c: InteractionContext,
+): Promise<Response> {
   const rawBody = c.get("rawBody" as never) as string;
   const params = new URLSearchParams(rawBody);
   const payloadStr = params.get("payload") ?? "{}";
@@ -50,9 +68,18 @@ async function refreshHome(
   slackUserId: string,
   userName: string,
 ): Promise<void> {
-  const { user, preferences } = await lazyProvision(c.env.DB, slackUserId, userName);
+  const { user, preferences } = await lazyProvision(
+    c.env.DB,
+    slackUserId,
+    userName,
+  );
   const { year, month } = resolveDisplayMonth(preferences);
-  const projects = await getProjectsWithChallenges(c.env.DB, user.id, year, month);
+  const projects = await getProjectsWithChallenges(
+    c.env.DB,
+    user.id,
+    year,
+    month,
+  );
   const view = buildHomeView(user, preferences, projects, year, month);
   await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
 }
@@ -75,21 +102,43 @@ async function handleBlockActions(
       const targetYear = parseInt(yearStr, 10);
       const targetMonth = parseInt(monthStr, 10);
 
-      safeWaitUntil(c, (async () => {
-        try {
-          const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
-          const updatedPrefs = await updatePreferences(c.env.DB, user.id, {
-            viewed_year: targetYear,
-            viewed_month: targetMonth,
-          });
-          const projects = await getProjectsWithChallenges(c.env.DB, user.id, targetYear, targetMonth);
-          const view = buildHomeView(user, updatedPrefs, projects, targetYear, targetMonth);
-          await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
-        } catch (e) {
-          const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
-          await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(() => {});
-        }
-      })());
+      safeWaitUntil(
+        c,
+        (async () => {
+          try {
+            const { user } = await lazyProvision(
+              c.env.DB,
+              slackUserId,
+              userName,
+            );
+            const updatedPrefs = await updatePreferences(c.env.DB, user.id, {
+              viewed_year: targetYear,
+              viewed_month: targetMonth,
+            });
+            const projects = await getProjectsWithChallenges(
+              c.env.DB,
+              user.id,
+              targetYear,
+              targetMonth,
+            );
+            const view = buildHomeView(
+              user,
+              updatedPrefs,
+              projects,
+              targetYear,
+              targetMonth,
+            );
+            await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
+          } catch (e) {
+            const view = buildErrorView(
+              e instanceof Error ? e.message : "Unknown error",
+            );
+            await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(
+              () => {},
+            );
+          }
+        })(),
+      );
       return c.text("", 200);
     }
 
@@ -97,28 +146,39 @@ async function handleBlockActions(
     case "challenge_set_in_progress":
     case "challenge_set_completed": {
       const challengeId = parseInt(action?.value ?? "0", 10);
-      const statusMap: Record<string, "not_started" | "in_progress" | "completed"> = {
+      const statusMap: Record<
+        string,
+        "not_started" | "in_progress" | "completed"
+      > = {
         challenge_set_not_started: "not_started",
         challenge_set_in_progress: "in_progress",
         challenge_set_completed: "completed",
       };
       const newStatus = statusMap[actionId];
 
-      safeWaitUntil(c, (async () => {
-        try {
-          await updateChallenge(c.env.DB, challengeId, { status: newStatus });
-          await refreshHome(c, slackUserId, userName);
-        } catch (e) {
-          const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
-          await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(() => {});
-        }
-      })());
+      safeWaitUntil(
+        c,
+        (async () => {
+          try {
+            await updateChallenge(c.env.DB, challengeId, { status: newStatus });
+            await refreshHome(c, slackUserId, userName);
+          } catch (e) {
+            const view = buildErrorView(
+              e instanceof Error ? e.message : "Unknown error",
+            );
+            await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(
+              () => {},
+            );
+          }
+        })(),
+      );
       return c.text("", 200);
     }
 
     case "challenge_open_comment": {
       // For overflow menu, the value is in selected_option
-      const challengeIdValue = action?.selected_option?.value ?? action?.value ?? "";
+      const challengeIdValue =
+        action?.selected_option?.value ?? action?.value ?? "";
       const modal = {
         type: "modal",
         callback_id: "modal_challenge_comment",
@@ -154,7 +214,11 @@ async function handleBlockActions(
     }
 
     case "home_open_settings": {
-      const { preferences } = await lazyProvision(c.env.DB, slackUserId, userName);
+      const { preferences } = await lazyProvision(
+        c.env.DB,
+        slackUserId,
+        userName,
+      );
       const settingsModal = buildSettingsModal(preferences);
       await openModal(c.env.SLACK_BOT_TOKEN, payload.trigger_id, settingsModal);
       return c.text("", 200);
@@ -173,27 +237,43 @@ async function handleBlockActions(
       const action2 = payload.actions?.[0];
       const projectId = parseInt(action2?.value ?? "0", 10);
 
-      safeWaitUntil(c, (async () => {
-        try {
-          const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
+      safeWaitUntil(
+        c,
+        (async () => {
+          try {
+            const { user } = await lazyProvision(
+              c.env.DB,
+              slackUserId,
+              userName,
+            );
 
-          const now = new Date();
-          const year = now.getUTCFullYear();
-          const month = now.getUTCMonth() + 1;
-          const projects = await getProjectsWithChallenges(c.env.DB, user.id, year, month);
-          const project = projects.find((p) => p.id === projectId);
+            const now = new Date();
+            const year = now.getUTCFullYear();
+            const month = now.getUTCMonth() + 1;
+            const projects = await getProjectsWithChallenges(
+              c.env.DB,
+              user.id,
+              year,
+              month,
+            );
+            const project = projects.find((p) => p.id === projectId);
 
-          if (!project || project.status !== "published") {
-            return;
+            if (!project || project.status !== "published") {
+              return;
+            }
+
+            const modal = buildReviewModal(project.id, project.challenges);
+            await openModal(c.env.SLACK_BOT_TOKEN, payload.trigger_id, modal);
+          } catch (e) {
+            const view = buildErrorView(
+              e instanceof Error ? e.message : "Unknown error",
+            );
+            await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(
+              () => {},
+            );
           }
-
-          const modal = buildReviewModal(project.id, project.challenges);
-          await openModal(c.env.SLACK_BOT_TOKEN, payload.trigger_id, modal);
-        } catch (e) {
-          const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
-          await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(() => {});
-        }
-      })());
+        })(),
+      );
       return c.text("", 200);
     }
 
@@ -209,15 +289,24 @@ async function handleViewSubmission(
   payload: SlackInteractionPayload,
 ): Promise<Response> {
   switch (payload.view?.callback_id) {
-    case "modal_new_project_standard":      return handleNewProjectStandardSubmit(c, payload);
-    case "modal_new_project_markdown":      return handleNewProjectMarkdownSubmit(c, payload);
-    case "modal_settings":                  return handleSettingsSubmit(c, payload);
-    case "modal_challenge_comment":         return handleChallengeCommentSubmit(c, payload);
-    case "modal_edit_project":              return handleEditProjectSubmit(c, payload);
-    case "modal_delete_project_confirm":    return handleDeleteProjectConfirmSubmit(c, payload);
-    case "modal_progress_report":           return handleProgressSubmit(c, payload);
-    case "modal_review":                    return handleReviewSubmit(c, payload);
-    default:                                return c.text("", 200);
+    case "modal_new_project_standard":
+      return handleNewProjectStandardSubmit(c, payload);
+    case "modal_new_project_markdown":
+      return handleNewProjectMarkdownSubmit(c, payload);
+    case "modal_settings":
+      return handleSettingsSubmit(c, payload);
+    case "modal_challenge_comment":
+      return handleChallengeCommentSubmit(c, payload);
+    case "modal_edit_project":
+      return handleEditProjectSubmit(c, payload);
+    case "modal_delete_project_confirm":
+      return handleDeleteProjectConfirmSubmit(c, payload);
+    case "modal_progress_report":
+      return handleProgressSubmit(c, payload);
+    case "modal_review":
+      return handleReviewSubmit(c, payload);
+    default:
+      return c.text("", 200);
   }
 }
 
@@ -229,23 +318,36 @@ async function handleChallengeCommentSubmit(
   const userName = payload.user.username ?? payload.user.name;
   const challengeId = parseInt(payload.view?.private_metadata ?? "0", 10);
   const comment =
-    payload.view?.state.values["input_progress_comment"]?.["input_progress_comment"]?.value ?? "";
+    payload.view?.state.values.input_progress_comment?.input_progress_comment
+      ?.value ?? "";
 
-  safeWaitUntil(c, (async () => {
-    try {
-      await updateChallenge(c.env.DB, challengeId, { progress_comment: comment });
-      await refreshHome(c, slackUserId, userName);
-    } catch (e) {
-      const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
-      await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(() => {});
-    }
-  })());
+  safeWaitUntil(
+    c,
+    (async () => {
+      try {
+        await updateChallenge(c.env.DB, challengeId, {
+          progress_comment: comment,
+        });
+        await refreshHome(c, slackUserId, userName);
+      } catch (e) {
+        const view = buildErrorView(
+          e instanceof Error ? e.message : "Unknown error",
+        );
+        await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(
+          () => {},
+        );
+      }
+    })(),
+  );
   return c.text("", 200);
 }
 
 // ─── Settings modal builder (duplicated from cem-settings handler for block_action use) ──
 
-function buildSettingsModal(preferences: { markdown_mode: number; personal_reminder: number }) {
+function buildSettingsModal(preferences: {
+  markdown_mode: number;
+  personal_reminder: number;
+}) {
   return {
     type: "modal",
     callback_id: "modal_settings",
@@ -260,9 +362,10 @@ function buildSettingsModal(preferences: { markdown_mode: number; personal_remin
         element: {
           type: "radio_buttons",
           action_id: "toggle_markdown_mode",
-          initial_option: preferences.markdown_mode === 1
-            ? { text: { type: "plain_text", text: "ON" }, value: "true" }
-            : { text: { type: "plain_text", text: "OFF" }, value: "false" },
+          initial_option:
+            preferences.markdown_mode === 1
+              ? { text: { type: "plain_text", text: "ON" }, value: "true" }
+              : { text: { type: "plain_text", text: "OFF" }, value: "false" },
           options: [
             { text: { type: "plain_text", text: "OFF" }, value: "false" },
             { text: { type: "plain_text", text: "ON" }, value: "true" },
@@ -276,9 +379,10 @@ function buildSettingsModal(preferences: { markdown_mode: number; personal_remin
         element: {
           type: "radio_buttons",
           action_id: "toggle_personal_reminder",
-          initial_option: preferences.personal_reminder === 1
-            ? { text: { type: "plain_text", text: "ON" }, value: "true" }
-            : { text: { type: "plain_text", text: "OFF" }, value: "false" },
+          initial_option:
+            preferences.personal_reminder === 1
+              ? { text: { type: "plain_text", text: "ON" }, value: "true" }
+              : { text: { type: "plain_text", text: "OFF" }, value: "false" },
           options: [
             { text: { type: "plain_text", text: "OFF" }, value: "false" },
             { text: { type: "plain_text", text: "ON" }, value: "true" },

@@ -1,10 +1,10 @@
-import { AppError } from "../types";
 import type { D1Database } from "@cloudflare/workers-types";
 import type {
   ChallengeRow,
   CreateChallengeInput,
   UpdateChallengeInput,
 } from "../types";
+import { AppError } from "../types";
 
 /**
  * Returns the count of challenges for a given project.

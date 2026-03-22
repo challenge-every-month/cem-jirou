@@ -1,10 +1,15 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import type { UserRow, UserPreferencesRow, ProjectWithChallenges, ChallengeRow } from "../../src/types";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type {
+  ChallengeRow,
+  ProjectWithChallenges,
+  UserPreferencesRow,
+  UserRow,
+} from "../../src/types";
 import {
-  resolveDisplayMonth,
-  isCurrentOrFutureMonth,
-  buildHomeView,
   buildErrorView,
+  buildHomeView,
+  isCurrentOrFutureMonth,
+  resolveDisplayMonth,
 } from "../../src/views/home";
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -17,7 +22,9 @@ const USER: UserRow = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
-function makePrefs(overrides: Partial<UserPreferencesRow> = {}): UserPreferencesRow {
+function makePrefs(
+  overrides: Partial<UserPreferencesRow> = {},
+): UserPreferencesRow {
   return {
     id: 1,
     user_id: 1,
@@ -46,7 +53,9 @@ function makeChallenge(overrides: Partial<ChallengeRow> = {}): ChallengeRow {
   };
 }
 
-function makeProject(overrides: Partial<ProjectWithChallenges> = {}): ProjectWithChallenges {
+function makeProject(
+  overrides: Partial<ProjectWithChallenges> = {},
+): ProjectWithChallenges {
   return {
     id: 10,
     user_id: 1,
@@ -79,12 +88,16 @@ describe("resolveDisplayMonth", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-15T12:00:00Z"));
 
-    const result = resolveDisplayMonth(makePrefs({ viewed_year: null, viewed_month: null }));
+    const result = resolveDisplayMonth(
+      makePrefs({ viewed_year: null, viewed_month: null }),
+    );
     expect(result).toEqual({ year: 2026, month: 3 });
   });
 
   it("returns set values when viewed_year and viewed_month are set", () => {
-    const result = resolveDisplayMonth(makePrefs({ viewed_year: 2025, viewed_month: 11 }));
+    const result = resolveDisplayMonth(
+      makePrefs({ viewed_year: 2025, viewed_month: 11 }),
+    );
     expect(result).toEqual({ year: 2025, month: 11 });
   });
 
@@ -92,7 +105,9 @@ describe("resolveDisplayMonth", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-15T12:00:00Z"));
 
-    const result = resolveDisplayMonth(makePrefs({ viewed_year: null, viewed_month: 7 }));
+    const result = resolveDisplayMonth(
+      makePrefs({ viewed_year: null, viewed_month: 7 }),
+    );
     expect(result.year).toBe(2026);
     expect(result.month).toBe(7);
   });
@@ -155,9 +170,9 @@ describe("buildHomeView", () => {
     const project = makeProject({ status: "reviewed" });
     const view = buildHomeView(USER, makePrefs(), [project], 2026, 3);
     // header block should contain ✅ テストプロジェクト
-    const headerBlock = (view.blocks as Array<{ type: string; text?: { text: string } }>).find(
-      (b) => b.type === "header",
-    );
+    const headerBlock = (
+      view.blocks as Array<{ type: string; text?: { text: string } }>
+    ).find((b) => b.type === "header");
     expect(headerBlock?.text?.text).toContain("✅");
   });
 
@@ -239,12 +254,24 @@ describe("buildHomeView", () => {
 
   it("footer has 📣 今月を宣言する only when a draft project exists", () => {
     const draftProject = makeProject({ status: "draft" });
-    const viewWithDraft = buildHomeView(USER, makePrefs(), [draftProject], 2026, 3);
+    const viewWithDraft = buildHomeView(
+      USER,
+      makePrefs(),
+      [draftProject],
+      2026,
+      3,
+    );
     expect(blocksJson(viewWithDraft)).toContain("home_publish");
     expect(blocksJson(viewWithDraft)).toContain("今月を宣言する");
 
     const publishedProject = makeProject({ status: "published" });
-    const viewNoDraft = buildHomeView(USER, makePrefs(), [publishedProject], 2026, 3);
+    const viewNoDraft = buildHomeView(
+      USER,
+      makePrefs(),
+      [publishedProject],
+      2026,
+      3,
+    );
     expect(blocksJson(viewNoDraft)).not.toContain("home_publish");
   });
 

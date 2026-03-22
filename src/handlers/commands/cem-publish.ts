@@ -1,19 +1,26 @@
 import type { Context } from "hono";
-import type { Env, SlackInteractionPayload } from "../../types";
-import { AppError } from "../../types";
-import { lazyProvision } from "../../services/user";
+import { assertProjectOwner } from "../../services/authorization";
 import {
   getProjectsWithChallenges,
   updateProject,
 } from "../../services/project";
-import { assertProjectOwner } from "../../services/authorization";
+import { lazyProvision } from "../../services/user";
+import type { Env, SlackInteractionPayload } from "../../types";
+import { AppError } from "../../types";
 import { postEphemeral, postMessage, publishHome } from "../../utils/slack-api";
 import { buildPublishMessage } from "../../views/channel-messages";
-import { resolveDisplayMonth, buildHomeView, buildErrorView } from "../../views/home";
+import {
+  buildErrorView,
+  buildHomeView,
+  resolveDisplayMonth,
+} from "../../views/home";
 
 // ─── Helper: safeWaitUntil ───────────────────────────────────────────────────
 
-function safeWaitUntil(c: Context<{ Bindings: Env }>, promise: Promise<void>): void {
+function safeWaitUntil(
+  c: Context<{ Bindings: Env }>,
+  promise: Promise<void>,
+): void {
   try {
     c.executionCtx.waitUntil(promise);
   } catch {
@@ -28,9 +35,18 @@ async function refreshHome(
   slackUserId: string,
   userName: string,
 ): Promise<void> {
-  const { user, preferences } = await lazyProvision(c.env.DB, slackUserId, userName);
+  const { user, preferences } = await lazyProvision(
+    c.env.DB,
+    slackUserId,
+    userName,
+  );
   const { year, month } = resolveDisplayMonth(preferences);
-  const projects = await getProjectsWithChallenges(c.env.DB, user.id, year, month);
+  const projects = await getProjectsWithChallenges(
+    c.env.DB,
+    user.id,
+    year,
+    month,
+  );
   const view = buildHomeView(user, preferences, projects, year, month);
   await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
 }
@@ -51,7 +67,12 @@ export async function handleCemPublish(
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth() + 1;
 
-  const projects = await getProjectsWithChallenges(c.env.DB, user.id, year, month);
+  const projects = await getProjectsWithChallenges(
+    c.env.DB,
+    user.id,
+    year,
+    month,
+  );
   const draftProject = projects.find(
     (p) => p.status === "draft" && p.is_inbox === 0,
   );
@@ -66,33 +87,45 @@ export async function handleCemPublish(
     return c.text("", 200);
   }
 
-  safeWaitUntil(c, (async () => {
-    try {
-      const updatedProject = await updateProject(c.env.DB, draftProject.id, {
-        status: "published",
-      });
+  safeWaitUntil(
+    c,
+    (async () => {
+      try {
+        const updatedProject = await updateProject(c.env.DB, draftProject.id, {
+          status: "published",
+        });
 
-      const message = buildPublishMessage(user, updatedProject, draftProject.challenges);
-      await postMessage(
-        c.env.SLACK_BOT_TOKEN,
-        c.env.SLACK_POST_CHANNEL_ID,
-        message.text ?? "",
-        message.blocks as unknown[],
-      );
+        const message = buildPublishMessage(
+          user,
+          updatedProject,
+          draftProject.challenges,
+        );
+        await postMessage(
+          c.env.SLACK_BOT_TOKEN,
+          c.env.SLACK_POST_CHANNEL_ID,
+          message.text ?? "",
+          message.blocks as unknown[],
+        );
 
-      await postEphemeral(
-        c.env.SLACK_BOT_TOKEN,
-        channelId,
-        slackUserId,
-        `✅ プロジェクト「${updatedProject.title}」を公開しました！`,
-      );
+        await postEphemeral(
+          c.env.SLACK_BOT_TOKEN,
+          channelId,
+          slackUserId,
+          `✅ プロジェクト「${updatedProject.title}」を公開しました！`,
+        );
 
-      await refreshHome(c, slackUserId, userName);
-    } catch (e) {
-      const msg = e instanceof AppError ? e.message : "エラーが発生しました";
-      await postEphemeral(c.env.SLACK_BOT_TOKEN, channelId, slackUserId, msg).catch(() => {});
-    }
-  })());
+        await refreshHome(c, slackUserId, userName);
+      } catch (e) {
+        const msg = e instanceof AppError ? e.message : "エラーが発生しました";
+        await postEphemeral(
+          c.env.SLACK_BOT_TOKEN,
+          channelId,
+          slackUserId,
+          msg,
+        ).catch(() => {});
+      }
+    })(),
+  );
 
   return c.text("", 200);
 }
@@ -108,42 +141,51 @@ export async function handleHomePublish(
   const slackUserId = payload.user.id;
   const userName = payload.user.username ?? payload.user.name;
 
-  safeWaitUntil(c, (async () => {
-    try {
-      const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
-      const project = await assertProjectOwner(c.env.DB, projectId, user.id);
+  safeWaitUntil(
+    c,
+    (async () => {
+      try {
+        const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
+        const project = await assertProjectOwner(c.env.DB, projectId, user.id);
 
-      const now = new Date();
-      const year = now.getUTCFullYear();
-      const month = now.getUTCMonth() + 1;
+        const now = new Date();
+        const year = now.getUTCFullYear();
+        const month = now.getUTCMonth() + 1;
 
-      const projectsWithChallenges = await getProjectsWithChallenges(
-        c.env.DB,
-        user.id,
-        year,
-        month,
-      );
-      const projectWithChallenges = projectsWithChallenges.find((p) => p.id === project.id);
-      const challenges = projectWithChallenges?.challenges ?? [];
+        const projectsWithChallenges = await getProjectsWithChallenges(
+          c.env.DB,
+          user.id,
+          year,
+          month,
+        );
+        const projectWithChallenges = projectsWithChallenges.find(
+          (p) => p.id === project.id,
+        );
+        const challenges = projectWithChallenges?.challenges ?? [];
 
-      const updatedProject = await updateProject(c.env.DB, projectId, {
-        status: "published",
-      });
+        const updatedProject = await updateProject(c.env.DB, projectId, {
+          status: "published",
+        });
 
-      const message = buildPublishMessage(user, updatedProject, challenges);
-      await postMessage(
-        c.env.SLACK_BOT_TOKEN,
-        c.env.SLACK_POST_CHANNEL_ID,
-        message.text ?? "",
-        message.blocks as unknown[],
-      );
+        const message = buildPublishMessage(user, updatedProject, challenges);
+        await postMessage(
+          c.env.SLACK_BOT_TOKEN,
+          c.env.SLACK_POST_CHANNEL_ID,
+          message.text ?? "",
+          message.blocks as unknown[],
+        );
 
-      await refreshHome(c, slackUserId, userName);
-    } catch (e) {
-      const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
-      await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(() => {});
-    }
-  })());
+        await refreshHome(c, slackUserId, userName);
+      } catch (e) {
+        const view = buildErrorView(
+          e instanceof Error ? e.message : "Unknown error",
+        );
+        await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view).catch(
+          () => {},
+        );
+      }
+    })(),
+  );
 
   return c.text("", 200);
 }

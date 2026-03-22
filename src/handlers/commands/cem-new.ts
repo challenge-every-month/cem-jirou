@@ -1,12 +1,15 @@
-import { lazyProvision } from "../../services/user";
-import { parseMarkdownInput } from "../../utils/markdown-parser";
-import { createProject, getOrCreateInboxProject } from "../../services/project";
-import { createChallenge } from "../../services/challenge";
-import { openModal } from "../../utils/slack-api";
 import type { Context } from "hono";
-import type { Env, SlackInteractionPayload } from "../../types";
+import { createChallenge } from "../../services/challenge";
+import { createProject, getOrCreateInboxProject } from "../../services/project";
+import { lazyProvision } from "../../services/user";
+import type { Env, ProjectRow, SlackInteractionPayload } from "../../types";
+import { parseMarkdownInput } from "../../utils/markdown-parser";
+import { openModal } from "../../utils/slack-api";
 
-export async function handleCemNew(c: Context<{ Bindings: Env }>, params: URLSearchParams): Promise<Response> {
+export async function handleCemNew(
+  c: Context<{ Bindings: Env }>,
+  params: URLSearchParams,
+): Promise<Response> {
   const slackUserId = params.get("user_id") ?? "";
   const userName = params.get("user_name") ?? "";
   const triggerId = params.get("trigger_id") ?? "";
@@ -36,13 +39,21 @@ function buildStandardModal() {
         block_id: "input_project_title",
         optional: true,
         label: { type: "plain_text", text: "Project タイトル（任意）" },
-        element: { type: "plain_text_input", action_id: "input_project_title", placeholder: { type: "plain_text", text: "例: 英語学習" } },
+        element: {
+          type: "plain_text_input",
+          action_id: "input_project_title",
+          placeholder: { type: "plain_text", text: "例: 英語学習" },
+        },
       },
       {
         type: "input",
         block_id: "input_challenge_name_0",
         label: { type: "plain_text", text: "Challenge 名" },
-        element: { type: "plain_text_input", action_id: "input_challenge_name_0", placeholder: { type: "plain_text", text: "例: Anki 30分" } },
+        element: {
+          type: "plain_text_input",
+          action_id: "input_challenge_name_0",
+          placeholder: { type: "plain_text", text: "例: Anki 30分" },
+        },
       },
       {
         type: "input",
@@ -72,7 +83,10 @@ function buildMarkdownModal() {
           type: "plain_text_input",
           action_id: "input_markdown_text",
           multiline: true,
-          placeholder: { type: "plain_text", text: "# プロジェクト名\n- チャレンジ名 @15" },
+          placeholder: {
+            type: "plain_text",
+            text: "# プロジェクト名\n- チャレンジ名 @15",
+          },
         },
       },
     ],
@@ -88,24 +102,35 @@ export async function handleNewProjectStandardSubmit(
   const userName = payload.user.username ?? payload.user.name;
   const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
 
-  const values = payload.view!.state.values;
-  const title = values["input_project_title"]?.["input_project_title"]?.value?.trim() ?? "";
-  const challengeName = values["input_challenge_name_0"]?.["input_challenge_name_0"]?.value?.trim() ?? "";
-  const dueOn = values["input_due_on_0"]?.["input_due_on_0"]?.selected_date ?? null;
+  const values = payload.view?.state.values ?? {};
+  const title =
+    values.input_project_title?.input_project_title?.value?.trim() ?? "";
+  const challengeName =
+    values.input_challenge_name_0?.input_challenge_name_0?.value?.trim() ?? "";
+  const dueOn = values.input_due_on_0?.input_due_on_0?.selected_date ?? null;
 
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth() + 1;
 
-  let project;
+  let project: ProjectRow;
   if (title) {
-    project = await createProject(c.env.DB, { user_id: user.id, title, year, month });
+    project = await createProject(c.env.DB, {
+      user_id: user.id,
+      title,
+      year,
+      month,
+    });
   } else {
     project = await getOrCreateInboxProject(c.env.DB, user.id, year, month);
   }
 
   if (challengeName) {
-    await createChallenge(c.env.DB, { project_id: project.id, name: challengeName, due_on: dueOn });
+    await createChallenge(c.env.DB, {
+      project_id: project.id,
+      name: challengeName,
+      due_on: dueOn,
+    });
   }
 
   return c.text("", 200);
@@ -120,8 +145,8 @@ export async function handleNewProjectMarkdownSubmit(
   const userName = payload.user.username ?? payload.user.name;
   const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
 
-  const values = payload.view!.state.values;
-  const text = values["input_markdown_text"]?.["input_markdown_text"]?.value ?? "";
+  const values = payload.view?.state.values ?? {};
+  const text = values.input_markdown_text?.input_markdown_text?.value ?? "";
 
   const now = new Date();
   const year = now.getUTCFullYear();
@@ -130,14 +155,23 @@ export async function handleNewProjectMarkdownSubmit(
   const parsed = parseMarkdownInput(text, year, month);
 
   for (const parsedProject of parsed) {
-    let project;
+    let project: ProjectRow;
     if (parsedProject.title) {
-      project = await createProject(c.env.DB, { user_id: user.id, title: parsedProject.title, year, month });
+      project = await createProject(c.env.DB, {
+        user_id: user.id,
+        title: parsedProject.title,
+        year,
+        month,
+      });
     } else {
       project = await getOrCreateInboxProject(c.env.DB, user.id, year, month);
     }
     for (const ch of parsedProject.challenges) {
-      await createChallenge(c.env.DB, { project_id: project.id, name: ch.name, due_on: ch.due_on });
+      await createChallenge(c.env.DB, {
+        project_id: project.id,
+        name: ch.name,
+        due_on: ch.due_on,
+      });
     }
   }
 

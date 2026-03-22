@@ -1,10 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
-import type { D1Database, D1PreparedStatement } from "@cloudflare/workers-types";
-import type { ProjectRow, ChallengeRow } from "../../src/types";
+import type {
+  D1Database,
+  D1PreparedStatement,
+} from "@cloudflare/workers-types";
+import { describe, expect, it, vi } from "vitest";
 import {
-  assertProjectOwner,
   assertChallengeOwner,
+  assertProjectOwner,
 } from "../../src/services/authorization";
+import type { ChallengeRow, ProjectRow } from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // D1 mock helpers
@@ -25,20 +28,24 @@ function makePreparedStatement(opts: {
     first: ReturnType<typeof vi.fn>;
   };
 
-  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(stmt);
+  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(
+    stmt,
+  );
 
   if (opts.error) {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockRejectedValue(opts.error);
   } else {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockResolvedValue(opts.firstResult ?? null);
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockResolvedValue(opts.firstResult ?? null);
   }
 
   return stmt;
 }
 
-function makeDb(
-  prepareImpl: (sql: string) => D1PreparedStatement,
-): D1Database {
+function makeDb(prepareImpl: (sql: string) => D1PreparedStatement): D1Database {
   return {
     prepare: vi.fn().mockImplementation(prepareImpl),
     exec: vi.fn(),
@@ -91,9 +98,7 @@ describe("assertProjectOwner", () => {
   });
 
   it("throws PROJECT_NOT_FOUND (404) when project does not exist", async () => {
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: null }),
-    );
+    const db = makeDb(() => makePreparedStatement({ firstResult: null }));
 
     await expect(assertProjectOwner(db, 999, 10)).rejects.toMatchObject({
       code: "PROJECT_NOT_FOUND",
@@ -102,8 +107,8 @@ describe("assertProjectOwner", () => {
   });
 
   it("throws FORBIDDEN (403) when the user does not own the project", async () => {
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: PROJECT_ROW }), // project owned by user_id=10
+    const db = makeDb(
+      () => makePreparedStatement({ firstResult: PROJECT_ROW }), // project owned by user_id=10
     );
 
     await expect(assertProjectOwner(db, 1, 99)).rejects.toMatchObject({
@@ -121,22 +126,20 @@ describe("assertChallengeOwner", () => {
   it("returns the challenge when the user is the owner", async () => {
     const joinedRow = { ...CHALLENGE_ROW, project_user_id: 10 };
 
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: joinedRow }),
-    );
+    const db = makeDb(() => makePreparedStatement({ firstResult: joinedRow }));
 
     const result = await assertChallengeOwner(db, 100, 10);
 
     expect(result.id).toBe(CHALLENGE_ROW.id);
     expect(result.name).toBe(CHALLENGE_ROW.name);
     // The joined field should not appear on the returned ChallengeRow
-    expect((result as unknown as Record<string, unknown>)["project_user_id"]).toBeUndefined();
+    expect(
+      (result as unknown as Record<string, unknown>).project_user_id,
+    ).toBeUndefined();
   });
 
   it("throws CHALLENGE_NOT_FOUND (404) when challenge does not exist", async () => {
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: null }),
-    );
+    const db = makeDb(() => makePreparedStatement({ firstResult: null }));
 
     await expect(assertChallengeOwner(db, 999, 10)).rejects.toMatchObject({
       code: "CHALLENGE_NOT_FOUND",
@@ -147,9 +150,7 @@ describe("assertChallengeOwner", () => {
   it("throws FORBIDDEN (403) when the user does not own the challenge", async () => {
     const joinedRow = { ...CHALLENGE_ROW, project_user_id: 10 };
 
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: joinedRow }),
-    );
+    const db = makeDb(() => makePreparedStatement({ firstResult: joinedRow }));
 
     await expect(assertChallengeOwner(db, 100, 99)).rejects.toMatchObject({
       code: "FORBIDDEN",

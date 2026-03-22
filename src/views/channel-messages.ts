@@ -1,10 +1,10 @@
 import type {
-  UserRow,
-  ProjectRow,
   ChallengeRow,
   ChallengeStatus,
+  ProjectRow,
   ProjectWithChallenges,
   SlackPostMessageRequest,
+  UserRow,
 } from "../types";
 
 // ─── Status emoji map ────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ export function buildPublishMessage(
   const challengeText = formatChallengeList(challenges);
 
   return {
-    channel: "",   // caller must fill in channel
+    channel: "", // caller must fill in channel
     text: `${user.user_name} が今月のチャレンジを宣言しました！`,
     blocks: [
       {

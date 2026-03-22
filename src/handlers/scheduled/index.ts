@@ -1,11 +1,23 @@
-import type { Env } from "../../types";
-import type { UserRow, ProjectRow, ChallengeRow, ProjectWithChallenges } from "../../types";
-import { postMessage, postDm } from "../../utils/slack-api";
-import { buildMidMonthMessage, buildMonthEndMessage } from "../../views/channel-messages";
+import type {
+  ChallengeRow,
+  Env,
+  ProjectRow,
+  ProjectWithChallenges,
+  UserRow,
+} from "../../types";
+import { postDm, postMessage } from "../../utils/slack-api";
+import {
+  buildMidMonthMessage,
+  buildMonthEndMessage,
+} from "../../views/channel-messages";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getCurrentYearMonth(): { year: number; month: number; dateStr: string } {
+function getCurrentYearMonth(): {
+  year: number;
+  month: number;
+  dateStr: string;
+} {
   const now = new Date();
   return {
     year: now.getUTCFullYear(),
@@ -29,14 +41,15 @@ interface ProjectRowWithUser extends ProjectRow {
 
 // ─── DB Query Helpers ─────────────────────────────────────────────────────────
 
-async function queryUsersWithPersonalReminder(env: Env): Promise<UserWithReminder[]> {
-  const result = await env.DB
-    .prepare(
-      `SELECT u.slack_user_id
+async function queryUsersWithPersonalReminder(
+  env: Env,
+): Promise<UserWithReminder[]> {
+  const result = await env.DB.prepare(
+    `SELECT u.slack_user_id
        FROM users u
        JOIN user_preferences up ON up.user_id = u.id
        WHERE up.personal_reminder = 1`,
-    )
+  )
     .bind()
     .all<UserWithReminder>();
   return result.results ?? [];
@@ -47,13 +60,12 @@ async function queryPublishedProjectsForMonth(
   year: number,
   month: number,
 ): Promise<ProjectWithChallenges[]> {
-  const projectRows = await env.DB
-    .prepare(
-      `SELECT p.*, u.user_name, u.slack_user_id
+  const projectRows = await env.DB.prepare(
+    `SELECT p.*, u.user_name, u.slack_user_id
        FROM projects p
        JOIN users u ON u.id = p.user_id
        WHERE p.year = ? AND p.month = ? AND p.status = 'published'`,
-    )
+  )
     .bind(year, month)
     .all<ProjectRowWithUser>();
 
@@ -64,10 +76,9 @@ async function queryPublishedProjectsForMonth(
 
   const projectIds = rows.map((p) => p.id);
   const placeholders = projectIds.map(() => "?").join(", ");
-  const challenges = await env.DB
-    .prepare(
-      `SELECT * FROM challenges WHERE project_id IN (${placeholders})`,
-    )
+  const challenges = await env.DB.prepare(
+    `SELECT * FROM challenges WHERE project_id IN (${placeholders})`,
+  )
     .bind(...projectIds)
     .all<ChallengeRow>();
 
@@ -90,8 +101,9 @@ async function queryPublishedProjectsForUserMonth(
   year: number,
   month: number,
 ): Promise<ProjectWithChallenges[]> {
-  const user = await env.DB
-    .prepare("SELECT * FROM users WHERE slack_user_id = ?")
+  const user = await env.DB.prepare(
+    "SELECT * FROM users WHERE slack_user_id = ?",
+  )
     .bind(slackUserId)
     .first<UserRow>();
 
@@ -99,11 +111,10 @@ async function queryPublishedProjectsForUserMonth(
     return [];
   }
 
-  const projectRows = await env.DB
-    .prepare(
-      `SELECT * FROM projects
+  const projectRows = await env.DB.prepare(
+    `SELECT * FROM projects
        WHERE user_id = ? AND year = ? AND month = ? AND status = 'published'`,
-    )
+  )
     .bind(user.id, year, month)
     .all<ProjectRow>();
 
@@ -114,10 +125,9 @@ async function queryPublishedProjectsForUserMonth(
 
   const projectIds = rows.map((p) => p.id);
   const placeholders = projectIds.map(() => "?").join(", ");
-  const challenges = await env.DB
-    .prepare(
-      `SELECT * FROM challenges WHERE project_id IN (${placeholders})`,
-    )
+  const challenges = await env.DB.prepare(
+    `SELECT * FROM challenges WHERE project_id IN (${placeholders})`,
+  )
     .bind(...projectIds)
     .all<ChallengeRow>();
 
@@ -163,7 +173,10 @@ async function handleMonthStartDm(env: Env): Promise<void> {
         "今月のチャレンジを登録しましょう！ `/cem_new` でプロジェクトを作成できます。",
       );
     } catch (err) {
-      console.error(`Failed to send month-start DM to ${user.slack_user_id}:`, err);
+      console.error(
+        `Failed to send month-start DM to ${user.slack_user_id}:`,
+        err,
+      );
     }
   }
 }
@@ -215,7 +228,9 @@ async function handleMonthEndDm(env: Env): Promise<void> {
 
       if (projects.length > 0) {
         const lines = projects.map((p) => {
-          const completed = p.challenges.filter((ch) => ch.status === "completed").length;
+          const completed = p.challenges.filter(
+            (ch) => ch.status === "completed",
+          ).length;
           const total = p.challenges.length;
           return `• *${p.title}*: ${completed}/${total} チャレンジ達成`;
         });
@@ -223,7 +238,10 @@ async function handleMonthEndDm(env: Env): Promise<void> {
         await postDm(env.SLACK_BOT_TOKEN, user.slack_user_id, summaryText);
       }
     } catch (err) {
-      console.error(`Failed to send month-end DM to ${user.slack_user_id}:`, err);
+      console.error(
+        `Failed to send month-end DM to ${user.slack_user_id}:`,
+        err,
+      );
     }
   }
 }
@@ -231,13 +249,12 @@ async function handleMonthEndDm(env: Env): Promise<void> {
 async function handleDueDateCheck(env: Env): Promise<void> {
   const { dateStr } = getCurrentYearMonth();
 
-  const result = await env.DB
-    .prepare(
-      `SELECT c.*, p.user_id
+  const result = await env.DB.prepare(
+    `SELECT c.*, p.user_id
        FROM challenges c
        JOIN projects p ON p.id = c.project_id
        WHERE c.due_on = ? AND c.status NOT IN ('completed', 'incompleted')`,
-    )
+  )
     .bind(dateStr)
     .all<ChallengeWithUserId>();
 
@@ -245,8 +262,9 @@ async function handleDueDateCheck(env: Env): Promise<void> {
 
   for (const challenge of challenges) {
     try {
-      const user = await env.DB
-        .prepare("SELECT slack_user_id FROM users WHERE id = ?")
+      const user = await env.DB.prepare(
+        "SELECT slack_user_id FROM users WHERE id = ?",
+      )
         .bind(challenge.user_id)
         .first<Pick<UserRow, "slack_user_id">>();
 
@@ -260,7 +278,10 @@ async function handleDueDateCheck(env: Env): Promise<void> {
         `本日が期日のチャレンジ: ${challenge.name}`,
       );
     } catch (err) {
-      console.error(`Failed to send due-date DM for challenge ${challenge.id}:`, err);
+      console.error(
+        `Failed to send due-date DM for challenge ${challenge.id}:`,
+        err,
+      );
     }
   }
 }

@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
-import type { Env } from "../../src/types";
+import { describe, expect, it } from "vitest";
 import { eventRouter } from "../../src/routes/events";
+import type { Env } from "../../src/types";
 
 function makeTestApp() {
   const app = new Hono<{ Bindings: Env }>();
@@ -16,7 +16,10 @@ describe("eventRouter", () => {
     const res = await app.request("/slack/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "url_verification", challenge: "test_challenge" }),
+      body: JSON.stringify({
+        type: "url_verification",
+        challenge: "test_challenge",
+      }),
     });
 
     expect(res.status).toBe(200);

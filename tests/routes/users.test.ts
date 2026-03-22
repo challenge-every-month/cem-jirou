@@ -1,9 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import type {
+  D1Database,
+  D1PreparedStatement,
+} from "@cloudflare/workers-types";
 import { Hono } from "hono";
-import type { Env } from "../../src/types";
-import type { D1Database, D1PreparedStatement } from "@cloudflare/workers-types";
-import type { UserRow, UserPreferencesRow } from "../../src/types";
+import { describe, expect, it, vi } from "vitest";
 import { usersRouter } from "../../src/routes/users";
+import type { Env, UserPreferencesRow, UserRow } from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // D1 mock helpers
@@ -11,26 +13,34 @@ import { usersRouter } from "../../src/routes/users";
 
 function makePreparedStatement(opts: {
   firstResult?: unknown;
-  runResult?: { success: boolean; meta: { last_row_id: number }; results: unknown[] };
+  runResult?: {
+    success: boolean;
+    meta: { last_row_id: number };
+    results: unknown[];
+  };
 }): D1PreparedStatement {
   const stmt = {
     bind: vi.fn(),
     first: vi.fn().mockResolvedValue(opts.firstResult ?? null),
     run: vi.fn().mockResolvedValue(
-      opts.runResult ?? { success: true, meta: { last_row_id: 1 }, results: [] },
+      opts.runResult ?? {
+        success: true,
+        meta: { last_row_id: 1 },
+        results: [],
+      },
     ),
     all: vi.fn(),
     raw: vi.fn(),
   } as unknown as D1PreparedStatement;
 
-  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(stmt);
+  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(
+    stmt,
+  );
 
   return stmt;
 }
 
-function makeDb(
-  prepareImpl: (sql: string) => D1PreparedStatement,
-): D1Database {
+function makeDb(prepareImpl: (sql: string) => D1PreparedStatement): D1Database {
   return {
     prepare: vi.fn().mockImplementation(prepareImpl),
     exec: vi.fn(),
@@ -66,7 +76,7 @@ const PREFS_ROW: UserPreferencesRow = {
 // Test app factory
 // ---------------------------------------------------------------------------
 
-function makeTestApp(db: D1Database) {
+function makeTestApp(_db: D1Database) {
   const app = new Hono<{ Bindings: Env }>();
   app.route("/users", usersRouter);
   return app;
@@ -87,9 +97,7 @@ function makeEnv(db: D1Database): Env {
 
 describe("GET /users/:slack_user_id", () => {
   it("returns 200 with user data (no id field)", async () => {
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: USER_ROW }),
-    );
+    const db = makeDb(() => makePreparedStatement({ firstResult: USER_ROW }));
     const app = makeTestApp(db);
     const env = makeEnv(db);
 
@@ -104,9 +112,7 @@ describe("GET /users/:slack_user_id", () => {
   });
 
   it("returns 404 for a nonexistent user", async () => {
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: null }),
-    );
+    const db = makeDb(() => makePreparedStatement({ firstResult: null }));
     const app = makeTestApp(db);
     const env = makeEnv(db);
 
@@ -164,9 +170,7 @@ describe("PATCH /users/:slack_user_id/preferences", () => {
   });
 
   it("returns 404 for a nonexistent user", async () => {
-    const db = makeDb(() =>
-      makePreparedStatement({ firstResult: null }),
-    );
+    const db = makeDb(() => makePreparedStatement({ firstResult: null }));
     const app = makeTestApp(db);
     const env = makeEnv(db);
 

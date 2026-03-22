@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
-import type { Env } from "../../src/types";
+import { describe, expect, it } from "vitest";
 import {
+  slackVerifyMiddleware,
   timingSafeEqual,
   verifySlackSignature,
-  slackVerifyMiddleware,
 } from "../../src/middleware/slack-verify";
+import type { Env } from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // Helper: generate a real HMAC-SHA256 signature the same way the middleware does
@@ -24,7 +24,11 @@ async function makeSignature(
     false,
     ["sign"],
   );
-  const bytes = await crypto.subtle.sign("HMAC", key, encoder.encode(basestring));
+  const bytes = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(basestring),
+  );
   const hex = Array.from(new Uint8Array(bytes))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
@@ -34,7 +38,7 @@ async function makeSignature(
 // ---------------------------------------------------------------------------
 // Helper: build a test Hono app with the middleware applied
 // ---------------------------------------------------------------------------
-function makeTestApp(env: Partial<Env> = {}) {
+function makeTestApp(_env: Partial<Env> = {}) {
   const app = new Hono<{ Bindings: Env }>();
   app.use("/slack/*", slackVerifyMiddleware);
   app.post("/slack/test", (c) => c.text("ok", 200));
@@ -42,7 +46,7 @@ function makeTestApp(env: Partial<Env> = {}) {
 }
 
 const TEST_SECRET = "test-signing-secret";
-const TEST_ENV: Partial<Env> = { SLACK_SIGNING_SECRET: TEST_SECRET };
+const _TEST_ENV: Partial<Env> = { SLACK_SIGNING_SECRET: TEST_SECRET };
 
 // ---------------------------------------------------------------------------
 // timingSafeEqual

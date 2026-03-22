@@ -1,9 +1,13 @@
 import type { Context } from "hono";
-import type { Env, SlackEventPayload } from "../types";
-import { lazyProvision } from "../services/user";
 import { getProjectsWithChallenges } from "../services/project";
-import { resolveDisplayMonth, buildHomeView, buildErrorView } from "../views/home";
+import { lazyProvision } from "../services/user";
+import type { Env, SlackEventPayload } from "../types";
 import { publishHome } from "../utils/slack-api";
+import {
+  buildErrorView,
+  buildHomeView,
+  resolveDisplayMonth,
+} from "../views/home";
 
 type EventContext = Context<{ Bindings: Env }>;
 
@@ -15,20 +19,34 @@ export async function eventRouter(c: EventContext): Promise<Response> {
     return c.json({ challenge: body.challenge });
   }
 
-  if (body.type === "event_callback" && body.event?.type === "app_home_opened") {
+  if (
+    body.type === "event_callback" &&
+    body.event?.type === "app_home_opened"
+  ) {
     const slackUserId = body.event?.user ?? "";
 
     // Acknowledge immediately, process in waitUntil (if available)
     const work = (async () => {
       try {
-        const { user, preferences } = await lazyProvision(c.env.DB, slackUserId, slackUserId);
+        const { user, preferences } = await lazyProvision(
+          c.env.DB,
+          slackUserId,
+          slackUserId,
+        );
         const { year, month } = resolveDisplayMonth(preferences);
-        const projects = await getProjectsWithChallenges(c.env.DB, user.id, year, month);
+        const projects = await getProjectsWithChallenges(
+          c.env.DB,
+          user.id,
+          year,
+          month,
+        );
         const view = buildHomeView(user, preferences, projects, year, month);
         await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
       } catch (e) {
         try {
-          const view = buildErrorView(e instanceof Error ? e.message : "Unknown error");
+          const view = buildErrorView(
+            e instanceof Error ? e.message : "Unknown error",
+          );
           await publishHome(c.env.SLACK_BOT_TOKEN, slackUserId, view);
         } catch {
           // suppress fallback errors (e.g. missing env in tests)

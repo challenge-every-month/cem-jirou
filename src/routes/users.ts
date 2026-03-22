@@ -1,7 +1,6 @@
 import { Hono } from "hono";
-import type { Env } from "../types";
 import { findUserBySlackId, updatePreferences } from "../services/user";
-import type { UpdatePreferencesInput } from "../types";
+import type { Env, UpdatePreferencesInput } from "../types";
 
 export const usersRouter = new Hono<{ Bindings: Env }>();
 

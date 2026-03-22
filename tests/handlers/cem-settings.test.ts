@@ -1,9 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { D1Database, D1PreparedStatement } from "@cloudflare/workers-types";
-import type { UserRow, UserPreferencesRow } from "../../src/types";
+import type {
+  D1Database,
+  D1PreparedStatement,
+} from "@cloudflare/workers-types";
 import { Hono } from "hono";
-import type { Env, SlackInteractionPayload } from "../../src/types";
-import { handleCemSettings, handleSettingsSubmit } from "../../src/handlers/commands/cem-settings";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  handleCemSettings,
+  handleSettingsSubmit,
+} from "../../src/handlers/commands/cem-settings";
+import type {
+  Env,
+  SlackInteractionPayload,
+  UserPreferencesRow,
+  UserRow,
+} from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // Mock slack-api module
@@ -49,28 +59,42 @@ function makePreparedStatement(opts: {
     all: ReturnType<typeof vi.fn>;
   };
 
-  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(stmt);
+  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(
+    stmt,
+  );
 
   if (opts.error) {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockRejectedValue(opts.error);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockRejectedValue(opts.error);
-    (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockRejectedValue(opts.error);
+    (
+      stmt as unknown as { all: ReturnType<typeof vi.fn> }
+    ).all.mockRejectedValue(opts.error);
   } else {
-    (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockResolvedValue(opts.firstResult ?? null);
-    (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockResolvedValue(
-      opts.runResult ?? { success: true, meta: { last_row_id: 1 }, results: [] },
+    (
+      stmt as unknown as { first: ReturnType<typeof vi.fn> }
+    ).first.mockResolvedValue(opts.firstResult ?? null);
+    (
+      stmt as unknown as { run: ReturnType<typeof vi.fn> }
+    ).run.mockResolvedValue(
+      opts.runResult ?? {
+        success: true,
+        meta: { last_row_id: 1 },
+        results: [],
+      },
     );
-    (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockResolvedValue(
-      opts.allResult ?? { results: [] },
-    );
+    (
+      stmt as unknown as { all: ReturnType<typeof vi.fn> }
+    ).all.mockResolvedValue(opts.allResult ?? { results: [] });
   }
 
   return stmt;
 }
 
-function makeDb(
-  prepareImpl: (sql: string) => D1PreparedStatement,
-): D1Database {
+function makeDb(prepareImpl: (sql: string) => D1PreparedStatement): D1Database {
   return {
     prepare: vi.fn().mockImplementation(prepareImpl),
     exec: vi.fn(),
@@ -91,7 +115,9 @@ const USER_ROW: UserRow = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
-function makePrefsRow(overrides: Partial<UserPreferencesRow> = {}): UserPreferencesRow {
+function makePrefsRow(
+  overrides: Partial<UserPreferencesRow> = {},
+): UserPreferencesRow {
   return {
     id: 1,
     user_id: 1,
@@ -160,15 +186,20 @@ describe("handleCemSettings", () => {
       trigger_id: "T123",
     }).toString();
 
-    const res = await app.request("/test/cem-settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, env);
+    const res = await app.request(
+      "/test/cem-settings",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     expect(openModal).toHaveBeenCalledOnce();
-    const [, triggerId, view] = (openModal as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, { callback_id: string }];
+    const [, triggerId, view] = (openModal as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, string, { callback_id: string }];
     expect(triggerId).toBe("T123");
     expect(view.callback_id).toBe("modal_settings");
   });
@@ -190,19 +221,31 @@ describe("handleCemSettings", () => {
       trigger_id: "T456",
     }).toString();
 
-    const res = await app.request("/test/cem-settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, env);
+    const res = await app.request(
+      "/test/cem-settings",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
-    const [, , view] = (openModal as ReturnType<typeof vi.fn>).mock.calls[0] as [
+    const [, , view] = (openModal as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [
       string,
       string,
-      { blocks: Array<{ block_id: string; element: { initial_option: { value: string } } }> },
+      {
+        blocks: Array<{
+          block_id: string;
+          element: { initial_option: { value: string } };
+        }>;
+      },
     ];
-    const markdownBlock = view.blocks.find((b) => b.block_id === "toggle_markdown_mode");
+    const markdownBlock = view.blocks.find(
+      (b) => b.block_id === "toggle_markdown_mode",
+    );
     expect(markdownBlock?.element.initial_option.value).toBe("true");
   });
 
@@ -223,18 +266,30 @@ describe("handleCemSettings", () => {
       trigger_id: "T789",
     }).toString();
 
-    await app.request("/test/cem-settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, env);
+    await app.request(
+      "/test/cem-settings",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      env,
+    );
 
-    const [, , view] = (openModal as ReturnType<typeof vi.fn>).mock.calls[0] as [
+    const [, , view] = (openModal as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [
       string,
       string,
-      { blocks: Array<{ block_id: string; element: { initial_option: { value: string } } }> },
+      {
+        blocks: Array<{
+          block_id: string;
+          element: { initial_option: { value: string } };
+        }>;
+      },
     ];
-    const reminderBlock = view.blocks.find((b) => b.block_id === "toggle_personal_reminder");
+    const reminderBlock = view.blocks.find(
+      (b) => b.block_id === "toggle_personal_reminder",
+    );
     expect(reminderBlock?.element.initial_option.value).toBe("true");
   });
 });
@@ -244,7 +299,10 @@ describe("handleSettingsSubmit", () => {
     vi.clearAllMocks();
   });
 
-  function makeSettingsPayload(markdownMode: string, personalReminder: string): SlackInteractionPayload {
+  function makeSettingsPayload(
+    markdownMode: string,
+    personalReminder: string,
+  ): SlackInteractionPayload {
     return {
       type: "view_submission",
       trigger_id: "T123",
@@ -273,15 +331,20 @@ describe("handleSettingsSubmit", () => {
   }
 
   it("calls updatePreferences with markdown_mode=true when value is 'true'", async () => {
-    const prefs = makePrefsRow({ markdown_mode: 0, personal_reminder: 0 });
-    const updatedPrefs = makePrefsRow({ markdown_mode: 1, personal_reminder: 0 });
+    const _prefs = makePrefsRow({ markdown_mode: 0, personal_reminder: 0 });
+    const updatedPrefs = makePrefsRow({
+      markdown_mode: 1,
+      personal_reminder: 0,
+    });
 
     const db = makeDb((sql: string) => {
       if (sql.includes("SELECT * FROM users")) {
         return makePreparedStatement({ firstResult: USER_ROW });
       }
       if (sql.startsWith("UPDATE user_preferences")) {
-        return makePreparedStatement({ runResult: { success: true, meta: { last_row_id: 1 }, results: [] } });
+        return makePreparedStatement({
+          runResult: { success: true, meta: { last_row_id: 1 }, results: [] },
+        });
       }
       if (sql.includes("user_preferences")) {
         // Return updated prefs after update
@@ -293,16 +356,20 @@ describe("handleSettingsSubmit", () => {
     const { app, env } = makeTestApp(db);
     const payload = makeSettingsPayload("true", "false");
 
-    const res = await app.request("/test/settings-submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }, env);
+    const res = await app.request(
+      "/test/settings-submit",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     const prepareMock = db.prepare as ReturnType<typeof vi.fn>;
-    const updateCall = prepareMock.mock.calls.find(
-      (args: unknown[]) => (args[0] as string).startsWith("UPDATE user_preferences"),
+    const updateCall = prepareMock.mock.calls.find((args: unknown[]) =>
+      (args[0] as string).startsWith("UPDATE user_preferences"),
     );
     expect(updateCall).toBeDefined();
     // The UPDATE SQL should set markdown_mode to 1 (true)
@@ -311,14 +378,19 @@ describe("handleSettingsSubmit", () => {
   });
 
   it("calls updatePreferences with personal_reminder=true when value is 'true'", async () => {
-    const updatedPrefs = makePrefsRow({ markdown_mode: 0, personal_reminder: 1 });
+    const updatedPrefs = makePrefsRow({
+      markdown_mode: 0,
+      personal_reminder: 1,
+    });
 
     const db = makeDb((sql: string) => {
       if (sql.includes("SELECT * FROM users")) {
         return makePreparedStatement({ firstResult: USER_ROW });
       }
       if (sql.startsWith("UPDATE user_preferences")) {
-        return makePreparedStatement({ runResult: { success: true, meta: { last_row_id: 1 }, results: [] } });
+        return makePreparedStatement({
+          runResult: { success: true, meta: { last_row_id: 1 }, results: [] },
+        });
       }
       if (sql.includes("user_preferences")) {
         return makePreparedStatement({ firstResult: updatedPrefs });
@@ -329,16 +401,20 @@ describe("handleSettingsSubmit", () => {
     const { app, env } = makeTestApp(db);
     const payload = makeSettingsPayload("false", "true");
 
-    const res = await app.request("/test/settings-submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }, env);
+    const res = await app.request(
+      "/test/settings-submit",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      env,
+    );
 
     expect(res.status).toBe(200);
     const prepareMock = db.prepare as ReturnType<typeof vi.fn>;
-    const updateCall = prepareMock.mock.calls.find(
-      (args: unknown[]) => (args[0] as string).startsWith("UPDATE user_preferences"),
+    const updateCall = prepareMock.mock.calls.find((args: unknown[]) =>
+      (args[0] as string).startsWith("UPDATE user_preferences"),
     );
     expect(updateCall).toBeDefined();
     const updateSql = (updateCall as unknown[])[0] as string;

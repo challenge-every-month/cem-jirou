@@ -1,9 +1,16 @@
-import { lazyProvision, updatePreferences } from "../../services/user";
-import { openModal } from "../../utils/slack-api";
 import type { Context } from "hono";
-import type { Env, SlackInteractionPayload, UserPreferencesRow } from "../../types";
+import { lazyProvision, updatePreferences } from "../../services/user";
+import type {
+  Env,
+  SlackInteractionPayload,
+  UserPreferencesRow,
+} from "../../types";
+import { openModal } from "../../utils/slack-api";
 
-export async function handleCemSettings(c: Context<{ Bindings: Env }>, params: URLSearchParams): Promise<Response> {
+export async function handleCemSettings(
+  c: Context<{ Bindings: Env }>,
+  params: URLSearchParams,
+): Promise<Response> {
   const slackUserId = params.get("user_id") ?? "";
   const userName = params.get("user_name") ?? "";
   const triggerId = params.get("trigger_id") ?? "";
@@ -23,9 +30,12 @@ export async function handleSettingsSubmit(
   const userName = payload.user.username ?? payload.user.name;
   const { user } = await lazyProvision(c.env.DB, slackUserId, userName);
 
-  const values = payload.view!.state.values;
-  const markdownModeVal = values["toggle_markdown_mode"]?.["toggle_markdown_mode"]?.selected_option?.value;
-  const personalReminderVal = values["toggle_personal_reminder"]?.["toggle_personal_reminder"]?.selected_option?.value;
+  const values = payload.view?.state.values ?? {};
+  const markdownModeVal =
+    values.toggle_markdown_mode?.toggle_markdown_mode?.selected_option?.value;
+  const personalReminderVal =
+    values.toggle_personal_reminder?.toggle_personal_reminder?.selected_option
+      ?.value;
 
   await updatePreferences(c.env.DB, user.id, {
     markdown_mode: markdownModeVal === "true",
@@ -50,9 +60,10 @@ function buildSettingsModal(preferences: UserPreferencesRow) {
         element: {
           type: "radio_buttons",
           action_id: "toggle_markdown_mode",
-          initial_option: preferences.markdown_mode === 1
-            ? { text: { type: "plain_text", text: "ON" }, value: "true" }
-            : { text: { type: "plain_text", text: "OFF" }, value: "false" },
+          initial_option:
+            preferences.markdown_mode === 1
+              ? { text: { type: "plain_text", text: "ON" }, value: "true" }
+              : { text: { type: "plain_text", text: "OFF" }, value: "false" },
           options: [
             { text: { type: "plain_text", text: "OFF" }, value: "false" },
             { text: { type: "plain_text", text: "ON" }, value: "true" },
@@ -66,9 +77,10 @@ function buildSettingsModal(preferences: UserPreferencesRow) {
         element: {
           type: "radio_buttons",
           action_id: "toggle_personal_reminder",
-          initial_option: preferences.personal_reminder === 1
-            ? { text: { type: "plain_text", text: "ON" }, value: "true" }
-            : { text: { type: "plain_text", text: "OFF" }, value: "false" },
+          initial_option:
+            preferences.personal_reminder === 1
+              ? { text: { type: "plain_text", text: "ON" }, value: "true" }
+              : { text: { type: "plain_text", text: "OFF" }, value: "false" },
           options: [
             { text: { type: "plain_text", text: "OFF" }, value: "false" },
             { text: { type: "plain_text", text: "ON" }, value: "true" },

@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  parseMarkdownInput,
   extractDueDate,
+  parseMarkdownInput,
 } from "../../src/utils/markdown-parser";
 
 // ---------------------------------------------------------------------------

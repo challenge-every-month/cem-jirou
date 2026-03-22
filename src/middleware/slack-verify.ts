@@ -61,7 +61,9 @@ export async function verifySlackSignature(opts: {
  *   c. Read rawBody and store in context
  *   d. Verify HMAC-SHA256 signature
  */
-export const slackVerifyMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
+export const slackVerifyMiddleware: MiddlewareHandler<{
+  Bindings: Env;
+}> = async (c, next) => {
   // a. Suppress Slack retries
   if (c.req.header("X-Slack-Retry-Num") !== undefined) {
     return c.text("", 200);

@@ -1,11 +1,11 @@
-import { AppError } from "../types";
 import type { D1Database } from "@cloudflare/workers-types";
 import type {
-  UserRow,
-  UserPreferencesRow,
   LazyProvisionResult,
   UpdatePreferencesInput,
+  UserPreferencesRow,
+  UserRow,
 } from "../types";
+import { AppError } from "../types";
 
 /**
  * Find-or-create pattern. Called at the start of every Slack command/event.
@@ -63,7 +63,7 @@ export async function lazyProvision(
     return { user: user!, preferences: prefs!, wasCreated: true };
   } catch (e: unknown) {
     const err = e as Error;
-    if (err.message && err.message.includes("UNIQUE")) {
+    if (err.message?.includes("UNIQUE")) {
       // Race condition — retry SELECT
       const existing = await db
         .prepare("SELECT * FROM users WHERE slack_user_id = ?")
@@ -72,7 +72,7 @@ export async function lazyProvision(
 
       const prefs = await db
         .prepare("SELECT * FROM user_preferences WHERE user_id = ?")
-        .bind(existing!.id)
+        .bind(existing?.id)
         .first<UserPreferencesRow>();
 
       return { user: existing!, preferences: prefs!, wasCreated: false };

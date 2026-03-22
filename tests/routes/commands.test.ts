@@ -1,8 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import type {
+  D1Database,
+  D1PreparedStatement,
+} from "@cloudflare/workers-types";
 import { Hono } from "hono";
-import type { D1Database, D1PreparedStatement } from "@cloudflare/workers-types";
-import type { Env, UserRow, UserPreferencesRow } from "../../src/types";
+import { describe, expect, it, vi } from "vitest";
 import { commandRouter } from "../../src/routes/commands";
+import type { Env, UserPreferencesRow, UserRow } from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // Mock Slack API — prevents real HTTP calls
@@ -44,12 +47,18 @@ function makePreparedStatement(opts: {
     all: ReturnType<typeof vi.fn>;
   };
 
-  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(stmt);
-  (stmt as unknown as { first: ReturnType<typeof vi.fn> }).first.mockResolvedValue(opts.firstResult ?? null);
+  (stmt as unknown as { bind: ReturnType<typeof vi.fn> }).bind.mockReturnValue(
+    stmt,
+  );
+  (
+    stmt as unknown as { first: ReturnType<typeof vi.fn> }
+  ).first.mockResolvedValue(opts.firstResult ?? null);
   (stmt as unknown as { run: ReturnType<typeof vi.fn> }).run.mockResolvedValue(
     opts.runResult ?? { success: true, meta: { last_row_id: 1 }, results: [] },
   );
-  (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockResolvedValue({ results: [] });
+  (stmt as unknown as { all: ReturnType<typeof vi.fn> }).all.mockResolvedValue({
+    results: [],
+  });
 
   return stmt;
 }
@@ -127,11 +136,15 @@ describe("commandRouter", () => {
     const app = makeTestApp();
     const body = makeFormBody({ command: "/unknown", text: "" });
 
-    const res = await app.request("/slack/commands", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, makeEnv());
+    const res = await app.request(
+      "/slack/commands",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      makeEnv(),
+    );
 
     expect(res.status).toBe(200);
     const data = (await res.json()) as { response_type: string; text: string };
@@ -149,11 +162,15 @@ describe("commandRouter", () => {
       trigger_id: "T123",
     });
 
-    const res = await app.request("/slack/commands", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, makeEnv());
+    const res = await app.request(
+      "/slack/commands",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      makeEnv(),
+    );
 
     expect(res.status).toBe(200);
   });
@@ -168,11 +185,15 @@ describe("commandRouter", () => {
       trigger_id: "T123",
     });
 
-    const res = await app.request("/slack/commands", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    }, makeEnv());
+    const res = await app.request(
+      "/slack/commands",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      makeEnv(),
+    );
 
     expect(res.status).toBe(200);
   });

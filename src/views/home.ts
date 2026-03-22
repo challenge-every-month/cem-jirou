@@ -1,22 +1,37 @@
-import type { UserRow, UserPreferencesRow, ProjectWithChallenges } from "../types";
+import type {
+  ProjectWithChallenges,
+  UserPreferencesRow,
+  UserRow,
+} from "../types";
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
-function calcPrevMonth(year: number, month: number): { year: number; month: number } {
-  return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
-}
-
-function calcNextMonth(year: number, month: number): { year: number; month: number } {
-  return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
-}
-
-export function resolveDisplayMonth(
-  preferences: UserPreferencesRow,
+function calcPrevMonth(
+  year: number,
+  month: number,
 ): { year: number; month: number } {
+  return month === 1
+    ? { year: year - 1, month: 12 }
+    : { year, month: month - 1 };
+}
+
+function calcNextMonth(
+  year: number,
+  month: number,
+): { year: number; month: number } {
+  return month === 12
+    ? { year: year + 1, month: 1 }
+    : { year, month: month + 1 };
+}
+
+export function resolveDisplayMonth(preferences: UserPreferencesRow): {
+  year: number;
+  month: number;
+} {
   const now = new Date();
   return {
     year: preferences.viewed_year ?? now.getUTCFullYear(),
-    month: preferences.viewed_month ?? (now.getUTCMonth() + 1),
+    month: preferences.viewed_month ?? now.getUTCMonth() + 1,
   };
 }
 
@@ -44,7 +59,12 @@ function buildNavSection(
     },
     {
       type: "context",
-      elements: [{ type: "mrkdwn", text: `${displayYear}年${displayMonth}月のチャレンジ` }],
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `${displayYear}年${displayMonth}月のチャレンジ`,
+        },
+      ],
     },
     {
       type: "actions",
@@ -100,7 +120,10 @@ function buildChallengeRow(challenge: {
     },
   ];
 
-  if (challenge.status === "not_started" || challenge.status === "in_progress") {
+  if (
+    challenge.status === "not_started" ||
+    challenge.status === "in_progress"
+  ) {
     blocks.push({
       type: "actions",
       elements: [
@@ -267,7 +290,10 @@ export function buildHomeView(
   return { type: "home", blocks };
 }
 
-export function buildErrorView(message: string): { type: "home"; blocks: unknown[] } {
+export function buildErrorView(message: string): {
+  type: "home";
+  blocks: unknown[];
+} {
   return {
     type: "home",
     blocks: [

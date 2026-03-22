@@ -1,6 +1,6 @@
-import { AppError } from "../types";
 import type { D1Database } from "@cloudflare/workers-types";
-import type { ProjectRow, ChallengeRow } from "../types";
+import type { ChallengeRow, ProjectRow } from "../types";
+import { AppError } from "../types";
 
 /**
  * Asserts that the given user owns the specified project.

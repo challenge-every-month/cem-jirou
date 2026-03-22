@@ -1,9 +1,14 @@
-import { describe, it, expect } from "vitest";
-import type { UserRow, ProjectRow, ChallengeRow, ProjectWithChallenges } from "../../src/types";
+import { describe, expect, it } from "vitest";
+import type {
+  ChallengeRow,
+  ProjectRow,
+  ProjectWithChallenges,
+  UserRow,
+} from "../../src/types";
 import {
-  buildPublishMessage,
   buildMidMonthMessage,
   buildMonthEndMessage,
+  buildPublishMessage,
 } from "../../src/views/channel-messages";
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
