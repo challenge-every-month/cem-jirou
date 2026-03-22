@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { eventRouter } from "../../src/routes/events";
-import type { Env } from "../../src/types";
+import type { HonoEnv } from "../../src/types";
 
 function makeTestApp() {
-  const app = new Hono<{ Bindings: Env }>();
+  const app = new Hono<HonoEnv>();
   app.post("/slack/events", eventRouter);
   return app;
 }

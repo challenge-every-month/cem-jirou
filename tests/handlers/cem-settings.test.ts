@@ -10,6 +10,7 @@ import {
 } from "../../src/handlers/commands/cem-settings";
 import type {
   Env,
+  HonoEnv,
   SlackInteractionPayload,
   UserPreferencesRow,
   UserRow,
@@ -136,7 +137,7 @@ function makePrefsRow(
 // ---------------------------------------------------------------------------
 
 function makeTestApp(db: D1Database, token = "xoxb-test") {
-  const app = new Hono<{ Bindings: Env }>();
+  const app = new Hono<HonoEnv>();
 
   app.post("/test/cem-settings", async (c) => {
     const rawBody = await c.req.text();

@@ -5,7 +5,12 @@ import type {
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import { commandRouter } from "../../src/routes/commands";
-import type { Env, UserPreferencesRow, UserRow } from "../../src/types";
+import type {
+  Env,
+  HonoEnv,
+  UserPreferencesRow,
+  UserRow,
+} from "../../src/types";
 
 // ---------------------------------------------------------------------------
 // Mock Slack API — prevents real HTTP calls
@@ -101,7 +106,7 @@ function makeDb(): D1Database {
 // ---------------------------------------------------------------------------
 
 function makeTestApp() {
-  const app = new Hono<{ Bindings: Env }>();
+  const app = new Hono<HonoEnv>();
 
   // Inject rawBody into context before routing (simulates middleware)
   app.use("/slack/commands", async (c, next) => {

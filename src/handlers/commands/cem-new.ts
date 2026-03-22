@@ -2,12 +2,12 @@ import type { Context } from "hono";
 import { createChallenge } from "../../services/challenge";
 import { createProject, getOrCreateInboxProject } from "../../services/project";
 import { lazyProvision } from "../../services/user";
-import type { Env, ProjectRow, SlackInteractionPayload } from "../../types";
+import type { HonoEnv, ProjectRow, SlackInteractionPayload } from "../../types";
 import { parseMarkdownInput } from "../../utils/markdown-parser";
 import { openModal } from "../../utils/slack-api";
 
 export async function handleCemNew(
-  c: Context<{ Bindings: Env }>,
+  c: Context<HonoEnv>,
   params: URLSearchParams,
 ): Promise<Response> {
   const slackUserId = params.get("user_id") ?? "";
@@ -95,7 +95,7 @@ function buildMarkdownModal() {
 
 // Handle view_submission for modal_new_project_standard
 export async function handleNewProjectStandardSubmit(
-  c: Context<{ Bindings: Env }>,
+  c: Context<HonoEnv>,
   payload: SlackInteractionPayload,
 ): Promise<Response> {
   const slackUserId = payload.user.id;
@@ -138,7 +138,7 @@ export async function handleNewProjectStandardSubmit(
 
 // Handle view_submission for modal_new_project_markdown
 export async function handleNewProjectMarkdownSubmit(
-  c: Context<{ Bindings: Env }>,
+  c: Context<HonoEnv>,
   payload: SlackInteractionPayload,
 ): Promise<Response> {
   const slackUserId = payload.user.id;
